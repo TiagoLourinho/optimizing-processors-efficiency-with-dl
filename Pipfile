@@ -4,8 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-tqdm = "*"
-mypy = "*"
+tqdm = "==4.66.5"
+mypy = "==1.11.2"
+nvidia-ml-py = "==12.560.30"
 
 [dev-packages]
 
