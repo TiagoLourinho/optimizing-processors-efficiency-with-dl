@@ -22,7 +22,7 @@ _Note: Add `-l <seconds>` to any query command to update the results every `seco
 
 ### Change clocks
 
-- `sudo nvidia-smi -lmc <freq>`: Sets the memory frequency to `freq` MHz (should be one of the supported frequencies).
-- `sudo nvidia-smi -lgc <freq>`: Sets the GPU frequency to `freq` MHz (should be one of the supported frequencies).
+- `sudo nvidia-smi -lmc <clock>`: Sets the memory clock to `clock` MHz (should be one of the supported clocks).
+- `sudo nvidia-smi -lgc <clock>`: Sets the GPU clock to `clock` MHz (should be one of the supported clocks).
 - `sudo nvidia-smi -rmc`: Resets the memory clock to the default value.
 - `sudo nvidia-smi -rgc`: Resets the GPU clock to the default value.
