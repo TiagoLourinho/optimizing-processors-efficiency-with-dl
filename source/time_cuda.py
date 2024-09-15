@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 
+from gpu import GPU
 from tqdm import tqdm
 
 BIN_FOLDER = "bin"
@@ -32,11 +33,18 @@ def collect_cmd_args() -> argparse.Namespace:
     """Collects the commnad line arguments"""
 
     parser = argparse.ArgumentParser(
-        description="Compiles and times a CUDA program.",
+        description="Compiles and times a CUDA program. Requires sudo to manage the GPU clocks.",
     )
 
     parser.add_argument(
         "cuda_file", type=str, help="The CUDA program to compile and time."
+    )
+
+    parser.add_argument(
+        "--nvcc",
+        type=str,
+        required=True,
+        help="The path of the nvcc compiler to be used while running in sudo. '$(which nvcc)' can be used to make it easier.",
     )
 
     parser.add_argument(
@@ -46,16 +54,35 @@ def collect_cmd_args() -> argparse.Namespace:
         help="The amount of times to run the program to get the average run time.",
     )
 
+    parser.add_argument(
+        "--graphics-clk",
+        type=int,
+        default=None,
+        help="The graphics clock to use.",
+    )
+
+    parser.add_argument(
+        "--memory-clk",
+        type=int,
+        default=None,
+        help="The memory clock to use.",
+    )
+
     return parser.parse_args()
 
 
-def compile(cuda_file: str):
+def compile(cuda_file: str, nvcc_path: str):
     """Compiles the CUDA program (`cuda_file`)"""
 
     if not os.path.exists(BIN_FOLDER):
         os.makedirs(BIN_FOLDER)
 
-    nvcc_command = ["nvcc", cuda_file, "-o", os.path.join(BIN_FOLDER, BINARY_CUDA_FILE)]
+    nvcc_command = [
+        nvcc_path,
+        cuda_file,
+        "-o",
+        os.path.join(BIN_FOLDER, BINARY_CUDA_FILE),
+    ]
 
     run_command(command=nvcc_command)
 
@@ -96,12 +123,26 @@ def main():
     try:
         args = collect_cmd_args()
 
-        compile(cuda_file=args.cuda_file)
+        gpu = GPU()
+
+        # Lock the given clocks. If None just lock with the values the GPU was already using (default)
+        gpu.memory_clk = (
+            args.memory_clk if args.memory_clk is not None else gpu.memory_clk
+        )
+        gpu.graphics_clk = (
+            args.graphics_clk if args.graphics_clk is not None else gpu.graphics_clk
+        )
+
+        compile(cuda_file=args.cuda_file, nvcc_path=args.nvcc)
 
         average_time = run_and_time(N=args.N)
 
         print(
-            f"{args.cuda_file} had an average run time of {round(average_time, 2)} s across {args.N} runs."
+            f"{args.cuda_file} had an average run time of {round(average_time, 2)}s across {args.N} runs."
+        )
+        print()
+        print(
+            f"The GPU was operating with memory_clk={gpu.memory_clk}MHz and graphics_clk={gpu.graphics_clk}MHZ."
         )
     finally:
         cleanup()

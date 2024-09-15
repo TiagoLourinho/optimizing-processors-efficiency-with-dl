@@ -7,6 +7,14 @@
 - NVIDIA Driver: [560.35.03](https://www.nvidia.com/en-us/drivers/details/230918/)
 - CUDA Toolkit: [12.6.1](https://developer.nvidia.com/cuda-12-6-1-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_network)
 
+## Usage
+
+1. Install [pipenv](https://pipenv.pypa.io/en/latest/).
+2. On the project root folder run `pipenv install`.
+3. Now run for example: `sudo -E pipenv run python3 source/time_cuda.py --nvcc $(which nvcc) -N 1 --graphics-clk 2040 --memory-clk 8001 benchmarks/benchmark.cu`
+
+_Note: Run `pipenv run python3 source/time_cuda.py -h` to see the command usage._
+
 ## Useful `nvidia-smi` commands
 
 ### Query commands
