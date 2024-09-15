@@ -5,6 +5,7 @@ import time
 
 from tqdm import tqdm
 
+BIN_FOLDER = "bin"
 BINARY_CUDA_FILE = "temp.out"
 
 
@@ -15,12 +16,15 @@ def run_command(command: list[str]):
         result = subprocess.run(command, check=True, capture_output=True)
 
         output = result.stdout.decode() + "\n\n" + result.stderr.decode()
+        output = output.strip()
 
         if output:
             print(output)
 
     except subprocess.CalledProcessError as e:
-        print(f"Error while running: {' '.join(command)}\n\n{e.stderr.decode()}")
+        print(
+            f"Error while running: {' '.join(command)}\n\n{e.stderr.decode().strip()}"
+        )
         exit()
 
 
@@ -48,7 +52,10 @@ def collect_cmd_args() -> argparse.Namespace:
 def compile(cuda_file: str):
     """Compiles the CUDA program (`cuda_file`)"""
 
-    nvcc_command = ["nvcc", cuda_file, "-o", BINARY_CUDA_FILE]
+    if not os.path.exists(BIN_FOLDER):
+        os.makedirs(BIN_FOLDER)
+
+    nvcc_command = ["nvcc", cuda_file, "-o", os.path.join(BIN_FOLDER, BINARY_CUDA_FILE)]
 
     run_command(command=nvcc_command)
 
@@ -65,7 +72,7 @@ def run_and_time(N: int) -> float:
     for _ in tqdm(range(N)):
         start = time.time()
 
-        run_command([f"./{BINARY_CUDA_FILE}"])
+        run_command([os.path.join(BIN_FOLDER, BINARY_CUDA_FILE)])
 
         end = time.time()
 
@@ -79,8 +86,10 @@ def run_and_time(N: int) -> float:
 def cleanup():
     """Deletes temporary files"""
 
-    if os.path.exists(BINARY_CUDA_FILE):
-        os.remove(BINARY_CUDA_FILE)
+    full_path = os.path.join(BIN_FOLDER, BINARY_CUDA_FILE)
+
+    if os.path.exists(full_path):
+        os.remove(full_path)
 
 
 def main():
