@@ -1,12 +1,12 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "12a21b2b2625fd8b85ca80b8e71112f85ac4756d59269675ffb81289cb6a5be1"
+            "sha256": "d1df867c1adb153dc858756dc4e17722bfb34263371bdeed7f0df2e8d8b999c2"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_full_version": "3.12.3",
-            "python_version": "3.12"
+            "python_full_version": "3.10.12",
+            "python_version": "3.10"
         },
         "sources": [
             {
@@ -66,6 +66,14 @@
             ],
             "index": "pypi",
             "version": "==12.560.30"
+        },
+        "tomli": {
+            "hashes": [
+                "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
+                "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
+            ],
+            "markers": "python_version < '3.11'",
+            "version": "==2.0.1"
         },
         "tqdm": {
             "hashes": [
