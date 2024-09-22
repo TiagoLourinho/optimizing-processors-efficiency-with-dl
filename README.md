@@ -11,7 +11,7 @@
 
 1. Install [pipenv](https://pipenv.pypa.io/en/latest/).
 2. On the project root folder run `pipenv install`.
-3. Now run for example: `sudo -E pipenv run python3 source/time_cuda.py --nvcc $(which nvcc) -N 1 --graphics-clk 2040 --memory-clk 8001 --sleep-time 1 benchmarks/benchmark.cu`
+3. Now run for example: `sudo -E pipenv run python3 source/profile_cuda.py --nvcc $(which nvcc) -N 1 --graphics-clk 2040 --memory-clk 8001 --sleep-time 1 benchmarks/benchmark.cu`
 
 _Note: Run `pipenv run python3 source/time_cuda.py -h` to see the command usage._
 
