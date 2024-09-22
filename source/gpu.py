@@ -1,10 +1,23 @@
 import time
+from enum import Enum, auto
 
 from pynvml import *
 
 
+class GPUQueries(Enum):
+    """Defines the queryable information of the GPU"""
+
+    GRAPHICS_CLOCK = auto()  # MHz
+    MEMORY_CLOCK = auto()  # MHz
+    TEMPERATURE = auto()  # C
+    POWER = auto()  # W
+    GPU_UTILIZATION = auto()  # %
+
+
 class GPU:
     """Interface to query and manage the GPU"""
+
+    ######################################## Dunder methods ########################################
 
     def __init__(self, sleep_time: int):
         """Initializes nvml and gets the device handle"""
@@ -31,6 +44,8 @@ class GPU:
         nvmlDeviceSetPersistenceMode(handle=self.__handle, mode=NVML_FEATURE_DISABLED)
 
         nvmlShutdown()
+
+    ######################################## Clocks management and monitoring ########################################
 
     @property
     def graphics_clk(self) -> int:
@@ -153,3 +168,24 @@ class GPU:
             ]
 
         return supported_clocks
+
+    ######################################## Queries ########################################
+
+    def query(self, query_type: GPUQueries) -> float | int:
+        """Queries a value of the GPU"""
+
+        match query_type:
+            case GPUQueries.GRAPHICS_CLOCK:
+                return self.graphics_clk
+            case GPUQueries.MEMORY_CLOCK:
+                return self.memory_clk
+            case GPUQueries.TEMPERATURE:
+                return nvmlDeviceGetTemperature(
+                    handle=self.__handle, sensor=NVML_TEMPERATURE_GPU
+                )
+            case GPUQueries.POWER:
+                return nvmlDeviceGetPowerUsage(handle=self.__handle) / 1000  # To watts
+            case GPUQueries.GPU_UTILIZATION:
+                return nvmlDeviceGetUtilizationRates(handle=self.__handle).gpu
+            case _:
+                raise ValueError(f"Invalid GPU query: {query_type}")
