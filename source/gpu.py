@@ -6,11 +6,11 @@ from pynvml import *
 class GPU:
     """Interface to query and manage the GPU"""
 
-    # After changing the GPU clocks, wait a bit to let the system stabilize
-    __sleep_time = 1  # s
-
-    def __init__(self):
+    def __init__(self, sleep_time: int):
         """Initializes nvml and gets the device handle"""
+
+        # After changing the GPU clocks, wait a bit to let the system stabilize
+        self.__sleep_time = sleep_time  # s
 
         nvmlInit()
 

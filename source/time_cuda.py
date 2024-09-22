@@ -68,6 +68,13 @@ def collect_cmd_args() -> argparse.Namespace:
         help="The memory clock to use.",
     )
 
+    parser.add_argument(
+        "--sleep-time",
+        type=float,
+        default=1,
+        help="The amount of seconds to sleep after changing GPU clocks speeds so the systems stabilizes.",
+    )
+
     return parser.parse_args()
 
 
@@ -123,7 +130,7 @@ def main():
     try:
         args = collect_cmd_args()
 
-        gpu = GPU()
+        gpu = GPU(sleep_time=args.sleep_time)
 
         # Lock the given clocks. If None just lock with the values the GPU was already using (default)
         gpu.memory_clk = (
