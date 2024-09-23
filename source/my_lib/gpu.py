@@ -45,6 +45,14 @@ class GPU:
 
         nvmlShutdown()
 
+    ######################################## Properties ########################################
+
+    @property
+    def name(self) -> str:
+        """Returns the GPU name"""
+
+        return nvmlDeviceGetName(handle=self.__handle)
+
     ######################################## Clocks management and monitoring ########################################
 
     @property

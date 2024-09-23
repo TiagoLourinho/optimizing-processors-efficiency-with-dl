@@ -1,11 +1,18 @@
+import json
 import os
+import socket
 import subprocess
 import time
+from datetime import datetime
 
+import cpuinfo
+import psutil
 from tqdm import tqdm
 
 BIN_FOLDER = "bin"  # Where to put the cuda binaries
 BINARY_CUDA_FILE = "temp.out"  # Name of the cuda binary created
+
+RESULTS_FOLDER = "results"  # Where to store benchmark results
 
 
 def compile(cuda_file: str, nvcc_path: str):
@@ -73,3 +80,37 @@ def cleanup():
 
     if os.path.exists(full_path):
         os.remove(full_path)
+
+
+def export_data(data: dict, benchmark_name: str):
+    """Writes the collected data to a JSON file"""
+
+    if not os.path.exists(RESULTS_FOLDER):
+        os.makedirs(RESULTS_FOLDER)
+
+    full_path = os.path.join(
+        RESULTS_FOLDER, os.path.basename(benchmark_name).replace(".cu", ".json")
+    )
+
+    with open(full_path, "w") as json_file:
+        json.dump(data, json_file, indent=4)
+
+
+def collect_system_info(gpu_name: str) -> dict:
+    """Collects system information"""
+
+    machine = socket.gethostname()
+
+    cpu = cpuinfo.get_cpu_info()["brand_raw"]
+
+    ram = psutil.virtual_memory().total / 1024**3  # To GB
+
+    time = str(datetime.now())
+
+    return {
+        "machine": machine,
+        "cpu": cpu,
+        "gpu": gpu_name,
+        "ram": round(ram),
+        "time": time,
+    }

@@ -1,7 +1,20 @@
 import argparse
 
 from my_lib.gpu import GPU
-from my_lib.utils import cleanup, run_and_time, compile
+from my_lib.utils import (
+    cleanup,
+    collect_system_info,
+    compile,
+    export_data,
+    run_and_time,
+)
+
+data: dict = {
+    "arguments": {},  # The command line arguments given
+    "system_info": {},  # System information
+    "results_summary": {},  # The most important results
+    "timeline": {},  # The sampled results across time
+}
 
 
 def collect_cmd_args() -> argparse.Namespace:
@@ -53,34 +66,28 @@ def collect_cmd_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main(data: dict):
     try:
         args = collect_cmd_args()
+        data["arguments"] = vars(args)
 
         gpu = GPU(sleep_time=args.sleep_time)
 
-        # Lock the given clocks. If None just lock with the values the GPU was already using (default)
-        gpu.memory_clk = (
-            args.memory_clk if args.memory_clk is not None else gpu.memory_clk
-        )
-        gpu.graphics_clk = (
-            args.graphics_clk if args.graphics_clk is not None else gpu.graphics_clk
-        )
+        data["system_info"] = collect_system_info(gpu_name=gpu.name)
+
+        if args.memory_clk is not None:
+            gpu.memory_clk = args.memory_clk
+        if args.graphics_clk is not None:
+            gpu.graphics_clk = args.graphics_clk
 
         compile(cuda_file=args.cuda_file, nvcc_path=args.nvcc)
 
-        average_time = run_and_time(N=args.N)
+        data["results_summary"]["average_time"] = run_and_time(N=args.N)
 
-        print(
-            f"{args.cuda_file} had an average run time of {round(average_time, 2)}s across {args.N} runs."
-        )
-        print()
-        print(
-            f"The GPU was operating with memory_clk={gpu.memory_clk}MHz and graphics_clk={gpu.graphics_clk}MHZ."
-        )
+        export_data(data=data, benchmark_name=args.cuda_file)
     finally:
         cleanup()
 
 
 if __name__ == "__main__":
-    main()
+    main(data=data)
