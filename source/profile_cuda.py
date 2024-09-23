@@ -46,14 +46,14 @@ def collect_cmd_args() -> argparse.Namespace:
         "--graphics-clk",
         type=int,
         default=None,
-        help="The graphics clock to use.",
+        help="The graphics clock to use in MHz.",
     )
 
     parser.add_argument(
         "--memory-clk",
         type=int,
         default=None,
-        help="The memory clock to use.",
+        help="The memory clock to use in MHz.",
     )
 
     parser.add_argument(
