@@ -62,30 +62,28 @@ def collect_cmd_args() -> argparse.Namespace:
 
 
 def main(data: dict):
-    try:
-        # Collect cmd line arguments
-        args = collect_cmd_args()
-        data["arguments"] = vars(args)
 
-        # Init the GPU and compile the benchmark
-        gpu = GPU(sleep_time=args.sleep_time)
-        benchmark_monitor = BenchmarkMonitor(
-            benchmark=args.cuda_file, gpu=gpu, nvcc_path=args.nvcc, N_runs=args.N
-        )
+    # Collect cmd line arguments
+    args = collect_cmd_args()
+    data["arguments"] = vars(args)
 
-        data["system_info"] = collect_system_info(gpu_name=gpu.name)
+    # Init the GPU and compile the benchmark
+    gpu = GPU(sleep_time=args.sleep_time)
+    benchmark_monitor = BenchmarkMonitor(
+        benchmark=args.cuda_file, gpu=gpu, nvcc_path=args.nvcc, N_runs=args.N
+    )
 
-        # Set the GPU clocks
-        if args.memory_clk is not None:
-            gpu.memory_clk = args.memory_clk
-        if args.graphics_clk is not None:
-            gpu.graphics_clk = args.graphics_clk
+    data["system_info"] = collect_system_info(gpu_name=gpu.name)
 
-        benchmark_monitor.run_and_monitor()
+    # Set the GPU clocks
+    if args.memory_clk is not None:
+        gpu.memory_clk = args.memory_clk
+    if args.graphics_clk is not None:
+        gpu.graphics_clk = args.graphics_clk
 
-        export_data(data=data, benchmark_name=args.cuda_file)
-    finally:
-        del gpu
+    benchmark_monitor.run_and_monitor()
+
+    export_data(data=data, benchmark_name=args.cuda_file)
 
 
 if __name__ == "__main__":

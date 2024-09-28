@@ -7,11 +7,20 @@ from pynvml import *
 class GPUQueries(Enum):
     """Defines the queryable information of the GPU"""
 
-    GRAPHICS_CLOCK = auto()  # MHz
-    MEMORY_CLOCK = auto()  # MHz
-    TEMPERATURE = auto()  # C
-    POWER = auto()  # W
-    GPU_UTILIZATION = auto()  # %
+    GRAPHICS_CLOCK = auto()
+    """  GRAPHICS_CLOCK [MHz] """
+
+    MEMORY_CLOCK = auto()
+    """ MEMORY_CLOCK [MHz] """
+
+    TEMPERATURE = auto()
+    """ TEMPERATURE [C] """
+
+    POWER = auto()
+    """ POWER [W] """
+
+    GPU_UTILIZATION = auto()
+    """ GPU_UTILIZATION [%] """
 
 
 class GPU:
@@ -61,13 +70,13 @@ class GPU:
 
     @property
     def graphics_clk(self) -> int:
-        """Returns the current graphics clock"""
+        """Graphics clock [MHz]"""
 
         return nvmlDeviceGetClockInfo(handle=self.__handle, type=NVML_CLOCK_GRAPHICS)
 
     @property
     def memory_clk(self) -> int:
-        """Returns the current memory clock"""
+        """Memory clock [MHz]"""
 
         # Avoid clock mismatch (see `get_supported_memory_clocks` docstring for more info)
 
@@ -85,7 +94,7 @@ class GPU:
 
     @graphics_clk.setter
     def graphics_clk(self, value: int):
-        """Sets the current graphics clock"""
+        """Sets the current graphics clock to `value` MHz"""
 
         # If the memory clock is locked, then only consider the current memory clock to get the supported graphics clock
         # If not, use the maximum possible memory clock so it returns all possible graphics clocks
@@ -118,7 +127,7 @@ class GPU:
 
     @memory_clk.setter
     def memory_clk(self, value: int):
-        """Sets the current memory clock"""
+        """Sets the current memory clock to `value` MHz"""
 
         supported_clocks = self.get_supported_memory_clocks()
 
@@ -159,7 +168,7 @@ class GPU:
         self.__is_memory_clk_locked = False
 
     def get_supported_graphics_clocks(self, memory_clock: int) -> list[int]:
-        """Returns the supported graphics clocks"""
+        """Returns the supported graphics clocks [MHz]"""
 
         return sorted(
             nvmlDeviceGetSupportedGraphicsClocks(
@@ -169,7 +178,7 @@ class GPU:
 
     def get_supported_memory_clocks(self, sanitize: bool = False) -> list[int]:
         """
-        Returns the supported memory clocks
+        Returns the supported memory clocks [MHz]
 
         If `sanitize` is True the method "fixes" some clocks
         (useful when the list is going to be used for comparison with the current memory clock for example)
