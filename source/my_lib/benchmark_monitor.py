@@ -3,16 +3,45 @@ import subprocess
 import threading
 import time
 
+import numpy as np
 from tqdm import tqdm
 
 from .gpu import GPU, GPUQueries
 
 
 class BenchmarkMonitor:
-    """Monitors and samples GPU metrics while executing a CUDA benchmark"""
+    """
+    Monitors and samples GPU metrics while executing a CUDA benchmark
+
+    Assumes that the benchmark writes the necessary events to stdout in real time (flushing the buffer), namely like:
+
+    `std::cout << "EVENT:START_ROI" << std::endl;`
+
+    and then
+
+    `std::cout << "EVENT:END_ROI" << std::endl;`
+
+    """
+
+    ########## Events ##########
+
+    START_ROI_EVENT = "EVENT:START_ROI"
+    """ Event defining the start of the Region Of Interest """
+
+    END_ROI_EVENT = "EVENT:END_ROI"
+    """ Event defining the end of the Region Of Interest """
 
     SAMPLING_FREQUENCY = 10
     """ The sampling frequency [Hz] """
+
+    METRICS = [
+        GPUQueries.GRAPHICS_CLOCK,
+        GPUQueries.MEMORY_CLOCK,
+        GPUQueries.TEMPERATURE,
+        GPUQueries.POWER,
+        GPUQueries.GPU_UTILIZATION,
+    ]
+    """ The metrics to collect from the GPU """
 
     def __init__(self, benchmark: str, gpu: GPU, nvcc_path: str, N_runs: str) -> None:
 
@@ -105,20 +134,12 @@ class BenchmarkMonitor:
                 }
         """
 
-        metrics = [
-            GPUQueries.GRAPHICS_CLOCK,
-            GPUQueries.MEMORY_CLOCK,
-            GPUQueries.TEMPERATURE,
-            GPUQueries.POWER,
-            GPUQueries.GPU_UTILIZATION,
-        ]
-
         period = 1 / self.SAMPLING_FREQUENCY
 
         while not terminate.is_set():
 
             # Initialize empty samples lists and wait to start
-            samples = {metric.name: [] for metric in metrics}
+            samples = {metric.name: [] for metric in self.METRICS}
             samples["sample_time"] = []  # Seconds since the start of the sampling
             sample_time = 0
 
@@ -128,7 +149,7 @@ class BenchmarkMonitor:
                 while sample.is_set():
 
                     # Collect samples
-                    for metric in metrics:
+                    for metric in self.METRICS:
                         samples[metric.name].append(self.__gpu.query(query_type=metric))
 
                     samples["sample_time"].append(sample_time)
@@ -139,9 +160,14 @@ class BenchmarkMonitor:
                 return_values.append(samples)
                 results_ready.set()
 
-    def run_and_monitor(self) -> tuple[dict, dict]:
+    def __process_samples(self, samples: list[dict]):
         """
-        Runs the benchmark and monitors it
+        Given the raw `samples` list calculates the average and returns the summary results and the timeline
+
+        Parameters
+        ----------
+        samples: list[dict]
+            The list of length 'N_runs' containing the output of __sample_gpu_thread method per each run
 
         Returns
         -------
@@ -156,13 +182,47 @@ class BenchmarkMonitor:
                     }
             - The timeline of the metrics collected that can be plotted
                 Example:
-                    (see return of __sample_gpu_thread)
+                    Check docstring of __sample_gpu_thread method
         """
+        n_runs = len(samples)
+        n_metrics = len(self.METRICS)
 
-        ########## Events ##########
+        # Compute the medians of each metric per run
+        # (the median is used to reduce the impact of potencial spikes on the metrics caused by the sensors or etc)
+        medians_per_run = np.full((n_runs, n_metrics), np.nan)
+        run_times_per_run = np.full(n_runs, np.nan)
 
-        START_ROI_EVENT = "EVENT:START_ROI"
-        END_ROI_EVENT = "EVENT:END_ROI"
+        for run_index in range(n_runs):
+            for metric_index, metric in enumerate(self.METRICS):
+                medians_per_run[run_index, metric_index] = np.median(
+                    samples[run_index][metric.name]
+                )
+
+            # Collect the run time (last sample time)
+            run_times_per_run[run_index] = samples[run_index]["sample_time"][-1]
+
+        # Compute the mean value per metric considering all the runs
+        averages = {}
+        for metric_index, metric in enumerate(self.METRICS):
+            averages[f"average_{metric.name}"] = float(
+                np.mean(medians_per_run[:, metric_index])
+            )
+        averages["average_run_time"] = float(np.mean(run_times_per_run))
+
+        # Get the index of the run that had the closest run time to the mean
+        index = np.argmin(np.absolute(run_times_per_run - averages["average_run_time"]))
+
+        return averages, samples[index]
+
+    def run_and_monitor(self) -> tuple[dict, dict]:
+        """
+        Runs the benchmark and monitors it
+
+        Returns
+        -------
+        tuple[dict, dict]
+            Check docstring of __process_samples method
+        """
 
         ########## Sampler thread management ##########
 
@@ -193,9 +253,9 @@ class BenchmarkMonitor:
             # Check stdout of the benchmark and sample inside the Region Of Interest
             for stdout_line in self.__run_command_generator(args=[self.__benchmark]):
 
-                if START_ROI_EVENT in stdout_line and not sample.is_set():
+                if self.START_ROI_EVENT in stdout_line and not sample.is_set():
                     sample.set()
-                elif END_ROI_EVENT in stdout_line and sample.is_set():
+                elif self.END_ROI_EVENT in stdout_line and sample.is_set():
 
                     sample.clear()
 
@@ -207,5 +267,4 @@ class BenchmarkMonitor:
         terminate.set()
         sampler_thread.join()
 
-        # TODO: Analyze the results and return the data
-        return {}, {}
+        return self.__process_samples(samples=results)
