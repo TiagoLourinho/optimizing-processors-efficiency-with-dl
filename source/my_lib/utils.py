@@ -28,28 +28,33 @@ def compile(cuda_file: str, nvcc_path: str):
         os.path.join(BIN_FOLDER, BINARY_CUDA_FILE),
     ]
 
-    run_command(command=nvcc_command)
+    # Use list to fully run the generator
+    _ = list(run_command_generator(args=nvcc_command))
 
     print(f"Successfully compiled {cuda_file}.\n")
 
 
-def run_command(command: list[str]):
-    """Runs a `command` using the subprocess library and checks for errors"""
+def run_command_generator(args: list[str]):
+    """Runs a command defined by `args` and acts as a generator for stdout"""
 
-    try:
-        result = subprocess.run(command, check=True, capture_output=True)
+    process = subprocess.Popen(
+        args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
 
-        output = result.stdout.decode() + "\n\n" + result.stderr.decode()
-        output = output.strip()
+    while True:
+        output = process.stdout.readline().strip()
+        return_code = process.poll()
 
-        if output:
-            print(output)
+        # process.poll returns None while the process is still running
+        if return_code is not None:
+            break
+        else:
+            yield output
 
-    except subprocess.CalledProcessError as e:
-        print(
-            f"Error while running: {' '.join(command)}\n\n{e.stderr.decode().strip()}"
+    if return_code != 0:
+        raise Exception(
+            f"There was an error running '{' '.join(args)}':\n\n{process.stderr.read().strip()}"
         )
-        exit()
 
 
 def run_and_time(N: int) -> float:
@@ -62,7 +67,8 @@ def run_and_time(N: int) -> float:
     for _ in tqdm(range(N)):
         start = time.time()
 
-        run_command([os.path.join(BIN_FOLDER, BINARY_CUDA_FILE)])
+        # Use list to fully run the generator
+        _ = list(run_command_generator([os.path.join(BIN_FOLDER, BINARY_CUDA_FILE)]))
 
         end = time.time()
 
@@ -112,5 +118,5 @@ def collect_system_info(gpu_name: str) -> dict:
         "cpu": cpu,
         "gpu": gpu_name,
         "ram": round(ram),
-        "time": time,
+        "run_start_time": time,
     }
