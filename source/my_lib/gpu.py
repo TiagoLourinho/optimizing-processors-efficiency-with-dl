@@ -35,6 +35,10 @@ class GPU:
         # Enable persistence mode to avoid the overhead of loading the driver each time
         nvmlDeviceSetPersistenceMode(handle=self.__handle, mode=NVML_FEATURE_ENABLED)
 
+        # To know whether or not the clocks are locked
+        self.__is_graphics_clk_locked = False
+        self.__is_memory_clk_locked = False
+
     def __del__(self):
         """Restores default values and shutdown nvml"""
 
@@ -83,9 +87,14 @@ class GPU:
     def graphics_clk(self, value: int):
         """Sets the current graphics clock"""
 
-        supported_clocks = self.get_supported_graphics_clocks(
-            memory_clock=self.memory_clk
-        )
+        # If the memory clock is locked, then only consider the current memory clock to get the supported graphics clock
+        # If not, use the maximum possible memory clock so it returns all possible graphics clocks
+        if self.__is_memory_clk_locked:
+            memory_clk = self.memory_clk
+        else:
+            memory_clk = max(self.get_supported_memory_clocks())
+
+        supported_clocks = self.get_supported_graphics_clocks(memory_clock=memory_clk)
 
         if value not in supported_clocks:
             raise ValueError(
@@ -104,6 +113,8 @@ class GPU:
             raise ValueError(
                 f"It wasn't possible to set the graphics clock to {value}MHz probably due to power/temperature limits."
             )
+
+        self.__is_graphics_clk_locked = True
 
     @memory_clk.setter
     def memory_clk(self, value: int):
@@ -129,17 +140,23 @@ class GPU:
                 f"It wasn't possible to set the memory clock to {value}MHz probably due to power/temperature limits."
             )
 
+        self.__is_memory_clk_locked = True
+
     def reset_graphics_clk(self):
         """Resets the graphics clock to the default value"""
 
         nvmlDeviceResetGpuLockedClocks(handle=self.__handle)
         time.sleep(self.__sleep_time)
 
+        self.__is_graphics_clk_locked = False
+
     def reset_memory_clk(self):
         """Resets the memory clock to the default value"""
 
         nvmlDeviceResetMemoryLockedClocks(handle=self.__handle)
         time.sleep(self.__sleep_time)
+
+        self.__is_memory_clk_locked = False
 
     def get_supported_graphics_clocks(self, memory_clock: int) -> list[int]:
         """Returns the supported graphics clocks"""
