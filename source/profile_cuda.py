@@ -1,13 +1,8 @@
 import argparse
 
+from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.gpu import GPU
-from my_lib.utils import (
-    cleanup,
-    collect_system_info,
-    compile,
-    export_data,
-    run_and_time,
-)
+from my_lib.utils import collect_system_info, export_data
 
 data: dict = {
     "arguments": {},  # The command line arguments given
@@ -68,25 +63,29 @@ def collect_cmd_args() -> argparse.Namespace:
 
 def main(data: dict):
     try:
+        # Collect cmd line arguments
         args = collect_cmd_args()
         data["arguments"] = vars(args)
 
+        # Init the GPU and compile the benchmark
         gpu = GPU(sleep_time=args.sleep_time)
+        benchmark_monitor = BenchmarkMonitor(
+            benchmark=args.cuda_file, gpu=gpu, nvcc_path=args.nvcc, N_runs=args.N
+        )
 
         data["system_info"] = collect_system_info(gpu_name=gpu.name)
 
+        # Set the GPU clocks
         if args.memory_clk is not None:
             gpu.memory_clk = args.memory_clk
         if args.graphics_clk is not None:
             gpu.graphics_clk = args.graphics_clk
 
-        compile(cuda_file=args.cuda_file, nvcc_path=args.nvcc)
-
-        data["results_summary"]["average_time"] = run_and_time(N=args.N)
+        benchmark_monitor.run_and_monitor()
 
         export_data(data=data, benchmark_name=args.cuda_file)
     finally:
-        cleanup()
+        del gpu
 
 
 if __name__ == "__main__":
