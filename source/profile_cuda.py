@@ -27,6 +27,8 @@ def collect_cmd_args() -> argparse.Namespace:
         description="Compiles and times a CUDA program. Requires sudo to manage the GPU clocks.",
     )
 
+    ######### Required arguments #########
+
     parser.add_argument(
         "cuda_file", type=str, help="The CUDA program to compile and time."
     )
@@ -38,32 +40,41 @@ def collect_cmd_args() -> argparse.Namespace:
         help="The path of the nvcc compiler to be used while running in sudo. '$(which nvcc)' can be used to make it easier.",
     )
 
+    ######### Optional arguments #########
+
     parser.add_argument(
-        "-N",
+        "--sampling-freq",
         type=int,
-        default=5,
-        help="The amount of times to run the program to get the median GPU metrics.",
+        default=10,
+        help="The sampling frequency to use [Hz]",
+    )
+
+    parser.add_argument(
+        "--N-runs",
+        type=int,
+        default=1,
+        help="The amount of times to run the program to get the median GPU metrics",
     )
 
     parser.add_argument(
         "--graphics-clk",
         type=int,
         default=None,
-        help="The graphics clock to use in MHz.",
+        help="The graphics clock to use [MHz]",
     )
 
     parser.add_argument(
         "--memory-clk",
         type=int,
         default=None,
-        help="The memory clock to use in MHz.",
+        help="The memory clock to use [MHz]",
     )
 
     parser.add_argument(
         "--sleep-time",
         type=float,
         default=1,
-        help="The amount of seconds to sleep after changing GPU clocks speeds so the systems stabilizes.",
+        help="The amount of time to sleep after changing GPU clocks speeds so the systems stabilizes [s]",
     )
 
     return parser.parse_args()
@@ -86,7 +97,11 @@ def main(data: dict):
     )
     gpu = GPU(sleep_time=args.sleep_time)
     benchmark_monitor = BenchmarkMonitor(
-        benchmark=args.cuda_file, gpu=gpu, nvcc_path=args.nvcc, N_runs=args.N
+        benchmark=args.cuda_file,
+        gpu=gpu,
+        nvcc_path=args.nvcc,
+        N_runs=args.N_runs,
+        sampling_frequency=args.sampling_freq,
     )
 
     data["system_info"] = collect_system_info(gpu_name=gpu.name)

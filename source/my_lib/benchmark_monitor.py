@@ -33,9 +33,6 @@ class BenchmarkMonitor:
     END_ROI_EVENT = "EVENT:END_ROI"
     """ Event defining the end of the Region Of Interest """
 
-    SAMPLING_FREQUENCY = 10
-    """ The sampling frequency [Hz] """
-
     METRICS = [
         GPUQueries.GRAPHICS_CLOCK,
         GPUQueries.MEMORY_CLOCK,
@@ -45,7 +42,14 @@ class BenchmarkMonitor:
     ]
     """ The metrics to collect from the GPU """
 
-    def __init__(self, benchmark: str, gpu: GPU, nvcc_path: str, N_runs: str) -> None:
+    def __init__(
+        self,
+        benchmark: str,
+        gpu: GPU,
+        nvcc_path: str,
+        N_runs: str,
+        sampling_frequency: int,
+    ) -> None:
 
         self.__gpu = gpu
         """ The GPU running the benchmark """
@@ -55,6 +59,9 @@ class BenchmarkMonitor:
 
         self.__N_runs = N_runs
         """ The number of times to run the benchmark (to calculate the median results) """
+
+        self.__sampling_frequency = sampling_frequency
+        """ The sampling frequency [Hz] """
 
     def __compile(self, cuda_file: str, nvcc_path: str) -> str:
         """Compiles the CUDA program"""
@@ -136,7 +143,7 @@ class BenchmarkMonitor:
                 }
         """
 
-        period = 1 / self.SAMPLING_FREQUENCY
+        period = 1 / self.__sampling_frequency
 
         while not terminate.is_set():
 
