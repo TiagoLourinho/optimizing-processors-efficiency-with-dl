@@ -107,7 +107,7 @@ class GPU:
 
         if value not in supported_clocks:
             raise ValueError(
-                f"A graphics clock of {value}MHz isn't supported when paired with a memory clock of {self.memory_clk}MHz, choose from:\n{supported_clocks}"
+                f"A graphics clock of {value} MHz isn't supported when paired with a memory clock of {memory_clk} MHz, choose from:\n{supported_clocks}"
             )
 
         nvmlDeviceSetGpuLockedClocks(
@@ -120,7 +120,7 @@ class GPU:
         # but then the value returned by the query is just 7000 MHz
         if abs(self.graphics_clk - value) > 1:
             raise ValueError(
-                f"It wasn't possible to set the graphics clock to {value}MHz probably due to power/temperature limits."
+                f"It wasn't possible to set the graphics clock to {value} MHz probably due to power/temperature limits."
             )
 
         self.__is_graphics_clk_locked = True
@@ -133,7 +133,7 @@ class GPU:
 
         if value not in supported_clocks:
             raise ValueError(
-                f"A memory clock of {value}MHz isn't supported, choose from:\n{supported_clocks}"
+                f"A memory clock of {value} MHz isn't supported, choose from:\n{supported_clocks}"
             )
 
         nvmlDeviceSetMemoryLockedClocks(
@@ -146,7 +146,7 @@ class GPU:
         # but then the value returned by the query is just 7000 MHz
         if abs(self.memory_clk - value) > 1:
             raise ValueError(
-                f"It wasn't possible to set the memory clock to {value}MHz probably due to power/temperature limits."
+                f"It wasn't possible to set the memory clock to {value} MHz probably due to power/temperature limits."
             )
 
         self.__is_memory_clk_locked = True

@@ -1,5 +1,7 @@
 import argparse
 import os
+import sys
+from datetime import datetime
 
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.gpu import GPU
@@ -72,8 +74,16 @@ def main(data: dict):
     # Collect cmd line arguments
     args = collect_cmd_args()
     data["arguments"] = vars(args)
+    data["arguments"][
+        "full_command"
+    ] = f"sudo -E pipenv run python3 {' '.join(sys.argv)}"
+
+    print(f"Starting to run the script at {datetime.now()}.")
 
     # Init the GPU and compile the benchmark
+    print(
+        f"Compiling benchmark and initializing GPU with graphics clock of {args.graphics_clk} MHz and memory clock of {args.memory_clk} MHz."
+    )
     gpu = GPU(sleep_time=args.sleep_time)
     benchmark_monitor = BenchmarkMonitor(
         benchmark=args.cuda_file, gpu=gpu, nvcc_path=args.nvcc, N_runs=args.N
