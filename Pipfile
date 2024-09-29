@@ -9,6 +9,7 @@ nvidia-ml-py = "==12.560.30"
 psutil = "==6.0.0"
 py-cpuinfo = "==9.0.0"
 numpy = "==2.1.1"
+matplotlib = "==3.9.2"
 
 [dev-packages]
 

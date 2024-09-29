@@ -87,9 +87,11 @@ def main(data: dict):
     if args.graphics_clk is not None:
         gpu.graphics_clk = args.graphics_clk
 
-    data["results_summary"], data["timeline"] = benchmark_monitor.run_and_monitor()
+    data["results_summary"], data["timeline"], figure = (
+        benchmark_monitor.run_and_monitor()
+    )
 
-    export_data(data=data, benchmark_path=args.cuda_file)
+    export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
 
 
 if __name__ == "__main__":

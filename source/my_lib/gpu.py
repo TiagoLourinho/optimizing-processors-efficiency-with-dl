@@ -1,5 +1,5 @@
 import time
-from enum import Enum, auto
+from enum import Enum
 
 from pynvml import *
 
@@ -7,20 +7,20 @@ from pynvml import *
 class GPUQueries(Enum):
     """Defines the queryable information of the GPU"""
 
-    GRAPHICS_CLOCK = auto()
-    """  GRAPHICS_CLOCK [MHz] """
+    GRAPHICS_CLOCK = "Graphics clock [MHz]"
+    """  Graphics clock [MHz] """
 
-    MEMORY_CLOCK = auto()
-    """ MEMORY_CLOCK [MHz] """
+    MEMORY_CLOCK = "Memory clock [MHz]"
+    """ Memory clock [MHz] """
 
-    TEMPERATURE = auto()
-    """ TEMPERATURE [C] """
+    TEMPERATURE = "Temperature [°C]"
+    """ Temperature [°C] """
 
-    POWER = auto()
-    """ POWER [W] """
+    POWER = "Power [W]"
+    """ Power [W] """
 
-    GPU_UTILIZATION = auto()
-    """ GPU_UTILIZATION [%] """
+    GPU_UTILIZATION = "GPU utilization [%]"
+    """ GPU utilization [%] """
 
 
 class GPU:

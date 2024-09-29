@@ -3,6 +3,8 @@ import subprocess
 import threading
 import time
 
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
@@ -124,7 +126,7 @@ class BenchmarkMonitor:
 
         Returns
         -------
-        dict (appended to `return_values`)
+        dict[str, list[float]] (appended to `return_values`)
             Example:
                 {
                     GRAPHICS_CLOCK: [1500, 1550, 1600, 1575, 1620],
@@ -160,13 +162,13 @@ class BenchmarkMonitor:
                 return_values.append(samples)
                 results_ready.set()
 
-    def __process_samples(self, samples: list[dict]):
+    def __process_samples(self, samples: list[dict[str, list[float]]]):
         """
         Given the raw `samples` list calculates the median and returns the summary results and the timeline
 
         Parameters
         ----------
-        samples: list[dict]
+        samples: list[dict[str, list[float]]]
             The list of length 'N_runs' containing the output of __sample_gpu_thread method per each run
 
         Returns
@@ -214,14 +216,66 @@ class BenchmarkMonitor:
 
         return medians, samples[index]
 
-    def run_and_monitor(self) -> tuple[dict, dict]:
+    def __create_plots(
+        self, timeline: dict[str, list[float]]
+    ) -> matplotlib.figure.Figure:
+        """Creates the matplotlib figure with the metrics timeline"""
+
+        n_metrics = len(self.METRICS)
+        n_columns = 2
+        n_rows = int(np.ceil(n_metrics / n_columns))
+
+        fig, axs = plt.subplots(n_rows, n_columns, figsize=(5 * n_columns, 3 * n_rows))
+
+        # Plot the results
+        flat_axs = axs.flat
+        for metric_index, metric in enumerate(self.METRICS):
+
+            # Line
+            flat_axs[metric_index].plot(
+                timeline["sample_time"], timeline[metric.name], color="blue", zorder=0
+            )
+
+            # Sample points
+            flat_axs[metric_index].scatter(
+                timeline["sample_time"],
+                timeline[metric.name],
+                marker="o",
+                s=1,
+                color="red",
+                zorder=1,
+            )
+
+            flat_axs[metric_index].set_xlabel("Run time [s]")
+            flat_axs[metric_index].set_ylabel(
+                metric.value
+            )  # The value of the enum contains the name and unit
+
+            flat_axs[metric_index].grid(True)
+
+        # Remove unused plots
+        if n_metrics < n_rows * n_columns:
+            for i in range(n_metrics, n_rows * n_columns):
+                fig.delaxes(flat_axs[i])
+
+        fig.tight_layout()
+        fig.subplots_adjust(top=0.925)  # Spacing for title
+        fig.suptitle(
+            f"'{os.path.basename(self.__benchmark).replace('.out','.cu')}' execution plots",
+            fontsize=16,
+        )
+
+        return fig
+
+    def run_and_monitor(self) -> tuple[dict, dict, matplotlib.figure.Figure]:
         """
         Runs the benchmark and monitors it
 
         Returns
         -------
-        tuple[dict, dict]
-            Check docstring of __process_samples method
+        tuple[dict, dict, matplotlib.figure.Figure]
+            - dicts -> Check docstring of __process_samples
+            - A figure with the execution plots
         """
 
         ########## Sampler thread management ##########
@@ -267,4 +321,7 @@ class BenchmarkMonitor:
         terminate.set()
         sampler_thread.join()
 
-        return self.__process_samples(samples=results)
+        summary_results, timeline = self.__process_samples(samples=results)
+        figure = self.__create_plots(timeline=timeline)
+
+        return summary_results, timeline, figure
