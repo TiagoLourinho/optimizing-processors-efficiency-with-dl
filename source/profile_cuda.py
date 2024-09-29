@@ -1,8 +1,14 @@
 import argparse
+import os
 
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.gpu import GPU
 from my_lib.utils import collect_system_info, export_data
+
+# Set umask to 000 to allow full read, write, and execute for everyone
+# avoiding the normal user not being able to modify the files created
+# as this script needs sudo (root) to run
+os.umask(0o000)
 
 data: dict = {
     "arguments": {},  # The command line arguments given
