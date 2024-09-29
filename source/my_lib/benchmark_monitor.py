@@ -52,7 +52,7 @@ class BenchmarkMonitor:
         """ The path of the CUDA binary to monitor """
 
         self.__N_runs = N_runs
-        """ The number of times to run the benchmark (to calculate the average results) """
+        """ The number of times to run the benchmark (to calculate the median results) """
 
     def __compile(self, cuda_file: str, nvcc_path: str) -> str:
         """Compiles the CUDA program"""
@@ -162,7 +162,7 @@ class BenchmarkMonitor:
 
     def __process_samples(self, samples: list[dict]):
         """
-        Given the raw `samples` list calculates the average and returns the summary results and the timeline
+        Given the raw `samples` list calculates the median and returns the summary results and the timeline
 
         Parameters
         ----------
@@ -172,13 +172,13 @@ class BenchmarkMonitor:
         Returns
         -------
         tuple[dict, dict]
-            - The dictionary with the summary of the main metrics collected and averaged
+            - The dictionary with the summary of the main metrics collected (the median was used across runs)
                 Example:
                     {
-                        average_GRAPHICS_CLOCK: 1600,
-                        average_TEMPERATURE: 67,
+                        median_GRAPHICS_CLOCK: 1600,
+                        median_TEMPERATURE: 67,
                         ...
-                        average_run_time: 23
+                        median_run_time: 23
                     }
             - The timeline of the metrics collected that can be plotted
                 Example:
@@ -201,18 +201,18 @@ class BenchmarkMonitor:
             # Collect the run time (last sample time)
             run_times_per_run[run_index] = samples[run_index]["sample_time"][-1]
 
-        # Compute the mean value per metric considering all the runs
-        averages = {}
+        # Compute the median value per metric considering all the runs
+        medians = {}
         for metric_index, metric in enumerate(self.METRICS):
-            averages[f"average_{metric.name}"] = float(
-                np.mean(medians_per_run[:, metric_index])
+            medians[f"median_{metric.name}"] = float(
+                np.median(medians_per_run[:, metric_index])
             )
-        averages["average_run_time"] = float(np.mean(run_times_per_run))
+        medians["median_run_time"] = float(np.median(run_times_per_run))
 
-        # Get the index of the run that had the closest run time to the mean
-        index = np.argmin(np.absolute(run_times_per_run - averages["average_run_time"]))
+        # Get the index of the run that had the closest run time to the median
+        index = np.argmin(np.absolute(run_times_per_run - medians["median_run_time"]))
 
-        return averages, samples[index]
+        return medians, samples[index]
 
     def run_and_monitor(self) -> tuple[dict, dict]:
         """

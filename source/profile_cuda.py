@@ -34,7 +34,7 @@ def collect_cmd_args() -> argparse.Namespace:
         "-N",
         type=int,
         default=5,
-        help="The amount of times to run the program to get the average run time.",
+        help="The amount of times to run the program to get the median GPU metrics.",
     )
 
     parser.add_argument(
