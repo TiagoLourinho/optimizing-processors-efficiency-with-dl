@@ -66,6 +66,8 @@ class BenchmarkMonitor:
     def __compile(self, cuda_file: str, nvcc_path: str) -> str:
         """Compiles the CUDA program"""
 
+        print("Compiling benchmark...")
+
         bin_folder = "bin"
 
         if not os.path.exists(bin_folder):

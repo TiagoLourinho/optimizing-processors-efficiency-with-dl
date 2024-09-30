@@ -29,10 +29,19 @@ class GPU:
     ######################################## Dunder methods ########################################
 
     def __init__(self, sleep_time: int):
-        """Initializes nvml and gets the device handle"""
+        """Defines sleep time and locked flags"""
 
         # After changing the GPU clocks, wait a bit to let the system stabilize
         self.__sleep_time = sleep_time  # s
+
+        # To know whether or not the clocks are locked
+        self.__is_graphics_clk_locked = False
+        self.__is_memory_clk_locked = False
+
+    def __enter__(self) -> "GPU":
+        """Initializes nvml and gets the device handle"""
+
+        print("Initializing GPU...")
 
         nvmlInit()
 
@@ -44,11 +53,9 @@ class GPU:
         # Enable persistence mode to avoid the overhead of loading the driver each time
         nvmlDeviceSetPersistenceMode(handle=self.__handle, mode=NVML_FEATURE_ENABLED)
 
-        # To know whether or not the clocks are locked
-        self.__is_graphics_clk_locked = False
-        self.__is_memory_clk_locked = False
+        return self
 
-    def __del__(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         """Restores default values and shutdown nvml"""
 
         self.reset_graphics_clk()

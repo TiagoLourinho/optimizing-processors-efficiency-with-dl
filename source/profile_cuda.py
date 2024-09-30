@@ -92,31 +92,28 @@ def main(data: dict):
     print(f"Starting to run the script at {datetime.now()}.")
 
     # Init the GPU and compile the benchmark
-    print(
-        f"Compiling benchmark and initializing GPU with graphics clock of {args.graphics_clk} MHz and memory clock of {args.memory_clk} MHz."
-    )
-    gpu = GPU(sleep_time=args.sleep_time)
-    benchmark_monitor = BenchmarkMonitor(
-        benchmark=args.cuda_file,
-        gpu=gpu,
-        nvcc_path=args.nvcc,
-        N_runs=args.N_runs,
-        sampling_frequency=args.sampling_freq,
-    )
+    with GPU(sleep_time=args.sleep_time) as gpu:
+        benchmark_monitor = BenchmarkMonitor(
+            benchmark=args.cuda_file,
+            gpu=gpu,
+            nvcc_path=args.nvcc,
+            N_runs=args.N_runs,
+            sampling_frequency=args.sampling_freq,
+        )
 
-    data["system_info"] = collect_system_info(gpu_name=gpu.name)
+        data["system_info"] = collect_system_info(gpu_name=gpu.name)
 
-    # Set the GPU clocks
-    if args.memory_clk is not None:
-        gpu.memory_clk = args.memory_clk
-    if args.graphics_clk is not None:
-        gpu.graphics_clk = args.graphics_clk
+        # Set the GPU clocks
+        if args.memory_clk is not None:
+            gpu.memory_clk = args.memory_clk
+        if args.graphics_clk is not None:
+            gpu.graphics_clk = args.graphics_clk
 
-    data["results_summary"], data["timeline"], figure = (
-        benchmark_monitor.run_and_monitor()
-    )
+        data["results_summary"], data["timeline"], figure = (
+            benchmark_monitor.run_and_monitor()
+        )
 
-    export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
+        export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
 
 
 if __name__ == "__main__":
