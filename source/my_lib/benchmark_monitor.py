@@ -42,6 +42,8 @@ class BenchmarkMonitor:
     ]
     """ The metrics to collect from the GPU """
 
+    ######################################## Dunder methods ########################################
+
     def __init__(
         self,
         benchmark: str,
@@ -62,6 +64,73 @@ class BenchmarkMonitor:
 
         self.__sampling_frequency = sampling_frequency
         """ The sampling frequency [Hz] """
+
+    ################################### Public methods ####################################
+
+    def run_and_monitor(self) -> tuple[dict, dict, matplotlib.figure.Figure]:
+        """
+        Runs the benchmark and monitors it
+
+        Returns
+        -------
+        tuple[dict, dict, matplotlib.figure.Figure]
+            - dicts -> Check docstring of __process_samples
+            - A figure with the execution plots
+        """
+
+        ########## Sampler thread management ##########
+        try:
+            return_values = []  # Samples collected by the thread will be appended here
+            results_ready = (
+                threading.Event()
+            )  # Controls when the samples were appended to the return array
+
+            sample = threading.Event()  # Controls when the thread should be sampling
+            terminate = threading.Event()  # Controls when the thread shoud terminate
+
+            sampler_thread = threading.Thread(
+                target=self.__sample_gpu_thread,
+                args=(return_values, results_ready, sample, terminate),
+            )
+            sampler_thread.start()
+
+            ########## Run benchmark and collect results ##########
+            results = []
+            print("Running benchmark and collecting samples...")
+            for _ in tqdm(range(self.__N_runs)):
+
+                # Clean events and return list before running
+                sample.clear()
+                results_ready.clear()
+                return_values.clear()
+
+                # Check stdout of the benchmark and sample inside the Region Of Interest
+                for stdout_line in self.__run_command_generator(
+                    args=[self.__benchmark]
+                ):
+
+                    if self.START_ROI_EVENT in stdout_line and not sample.is_set():
+                        sample.set()
+                    elif self.END_ROI_EVENT in stdout_line and sample.is_set():
+
+                        sample.clear()
+
+                        # Wait for the other thread to append the samples and then collect them
+                        results_ready.wait()
+                        results.append(return_values[-1])
+
+            ########## Post processing ##########
+
+            summary_results, timeline = self.__process_samples(samples=results)
+            figure = self.__create_plots(timeline=timeline)
+
+            return summary_results, timeline, figure
+        finally:
+            ########## Cleanup ##########
+            terminate.set()
+            sampler_thread.join()
+
+    ################################### Utils ####################################
 
     def __compile(self, cuda_file: str, nvcc_path: str) -> str:
         """Compiles the CUDA program"""
@@ -111,65 +180,7 @@ class BenchmarkMonitor:
                 f"There was an error running '{' '.join(args)}':\n\n{process.stderr.read().strip()}"
             )
 
-    def __sample_gpu_thread(
-        self,
-        return_values: list,
-        results_ready: threading.Event,
-        sample: threading.Event,
-        terminate: threading.Event,
-    ) -> None:
-        """
-        Method that should be called in a auxiliar thread to sample the GPU metrics
-
-        Parameters
-        ----------
-        return_values: list
-            A list where the return values (GPU metrics) of this thread will be appended
-        results_ready: threading.Event
-            An event to signal the main thread when the samples were appended to `return_values` meaning they are ready to be collected
-        sample: threading.Event
-            An event controlling whether or not this thread should be sampling the GPU
-        terminate: threading.Event
-            An event controlling when this thread should terminate
-
-
-        Returns
-        -------
-        dict[str, list[float]] (appended to `return_values`)
-            Example:
-                {
-                    GRAPHICS_CLOCK: [1500, 1550, 1600, 1575, 1620],
-                    TEMPERATURE: [65, 67, 68, 66, 70],
-                    ...
-                    sample_time: [ 0, 0.1, 0.2, 0.3, 0.4] # Seconds since the start of the sampling
-                }
-        """
-
-        period = 1 / self.__sampling_frequency
-
-        while not terminate.is_set():
-
-            # Initialize empty samples lists and wait to start
-            samples = {metric.name: [] for metric in self.METRICS}
-            samples["sample_time"] = []  # Seconds since the start of the sampling
-            sample_time = 0
-
-            flag = sample.wait(timeout=0.5)
-
-            if flag:
-                while sample.is_set() and not terminate.is_set():
-
-                    # Collect samples
-                    for metric in self.METRICS:
-                        samples[metric.name].append(self.__gpu.query(query_type=metric))
-
-                    samples["sample_time"].append(sample_time)
-                    time.sleep(period)
-                    sample_time += period
-
-                # "Return" the collected samples
-                return_values.append(samples)
-                results_ready.set()
+    ################################### Data post processing ####################################
 
     def __process_samples(self, samples: list[dict[str, list[float]]]):
         """
@@ -276,65 +287,64 @@ class BenchmarkMonitor:
 
         return fig
 
-    def run_and_monitor(self) -> tuple[dict, dict, matplotlib.figure.Figure]:
+    ################################### Threaded methods ####################################
+
+    def __sample_gpu_thread(
+        self,
+        return_values: list,
+        results_ready: threading.Event,
+        sample: threading.Event,
+        terminate: threading.Event,
+    ) -> None:
         """
-        Runs the benchmark and monitors it
+        Method that should be called in a auxiliar thread to sample the GPU metrics
+
+        Parameters
+        ----------
+        return_values: list
+            A list where the return values (GPU metrics) of this thread will be appended
+        results_ready: threading.Event
+            An event to signal the main thread when the samples were appended to `return_values` meaning they are ready to be collected
+        sample: threading.Event
+            An event controlling whether or not this thread should be sampling the GPU
+        terminate: threading.Event
+            An event controlling when this thread should terminate
+
 
         Returns
         -------
-        tuple[dict, dict, matplotlib.figure.Figure]
-            - dicts -> Check docstring of __process_samples
-            - A figure with the execution plots
+        dict[str, list[float]] (appended to `return_values`)
+            Example:
+                {
+                    GRAPHICS_CLOCK: [1500, 1550, 1600, 1575, 1620],
+                    TEMPERATURE: [65, 67, 68, 66, 70],
+                    ...
+                    sample_time: [ 0, 0.1, 0.2, 0.3, 0.4] # Seconds since the start of the sampling
+                }
         """
 
-        ########## Sampler thread management ##########
-        try:
-            return_values = []  # Samples collected by the thread will be appended here
-            results_ready = (
-                threading.Event()
-            )  # Controls when the samples were appended to the return array
+        period = 1 / self.__sampling_frequency
 
-            sample = threading.Event()  # Controls when the thread should be sampling
-            terminate = threading.Event()  # Controls when the thread shoud terminate
+        while not terminate.is_set():
 
-            sampler_thread = threading.Thread(
-                target=self.__sample_gpu_thread,
-                args=(return_values, results_ready, sample, terminate),
-            )
-            sampler_thread.start()
+            # Initialize empty samples lists and wait to start
+            samples = {metric.name: [] for metric in self.METRICS}
+            samples["sample_time"] = []  # Seconds since the start of the sampling
+            sample_time = 0
 
-            ########## Run benchmark and collect results ##########
-            results = []
-            print("Running benchmark and collecting samples...")
-            for _ in tqdm(range(self.__N_runs)):
+            flag = sample.wait(timeout=0.5)
 
-                # Clean events and return list before running
-                sample.clear()
-                results_ready.clear()
-                return_values.clear()
+            if flag:
+                while sample.is_set() and not terminate.is_set():
 
-                # Check stdout of the benchmark and sample inside the Region Of Interest
-                for stdout_line in self.__run_command_generator(
-                    args=[self.__benchmark]
-                ):
+                    # Collect samples
+                    for metric in self.METRICS:
+                        samples[metric.name].append(self.__gpu.query(query_type=metric))
 
-                    if self.START_ROI_EVENT in stdout_line and not sample.is_set():
-                        sample.set()
-                    elif self.END_ROI_EVENT in stdout_line and sample.is_set():
+                    samples["sample_time"].append(sample_time)
+                    time.sleep(period)
+                    sample_time += period
 
-                        sample.clear()
-
-                        # Wait for the other thread to append the samples and then collect them
-                        results_ready.wait()
-                        results.append(return_values[-1])
-
-            ########## Post processing ##########
-
-            summary_results, timeline = self.__process_samples(samples=results)
-            figure = self.__create_plots(timeline=timeline)
-
-            return summary_results, timeline, figure
-        finally:
-            ########## Cleanup ##########
-            terminate.set()
-            sampler_thread.join()
+                # "Return" the collected samples
+                return_values.append(samples)
+                results_ready.set()
