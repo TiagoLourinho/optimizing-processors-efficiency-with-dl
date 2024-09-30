@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 
 from .gpu import GPU, GPUQueries
+from .utils import are_there_other_users
 
 
 class BenchmarkMonitor:
@@ -74,25 +75,56 @@ class BenchmarkMonitor:
         Returns
         -------
         tuple[dict, dict, matplotlib.figure.Figure]
-            - dicts -> Check docstring of __process_samples
+            - dicts -> Check docstring of __process_samples + the summary one contains a `did_other_users_login` boolean key
             - A figure with the execution plots
         """
 
-        ########## Sampler thread management ##########
         try:
-            return_values = []  # Samples collected by the thread will be appended here
-            results_ready = (
-                threading.Event()
-            )  # Controls when the samples were appended to the return array
+            ########## Sampler thread management ##########
 
-            sample = threading.Event()  # Controls when the thread should be sampling
-            terminate = threading.Event()  # Controls when the thread shoud terminate
+            sampler_return_values = (
+                []
+            )  # Samples collected by the thread will be appended here
+            sampler_results_ready_event = (
+                threading.Event()
+            )  # Signals when the samples were appended to the return list
+
+            sample_event = (
+                threading.Event()
+            )  # Controls when the thread should be sampling
+            terminate_event = (
+                threading.Event()
+            )  # Controls when the thread shoud terminate
 
             sampler_thread = threading.Thread(
-                target=self.__sample_gpu_thread,
-                args=(return_values, results_ready, sample, terminate),
+                target=self.__thread_sample_gpu,
+                args=(
+                    sampler_return_values,
+                    sampler_results_ready_event,
+                    sample_event,
+                    terminate_event,
+                ),
             )
             sampler_thread.start()
+
+            ########## Users monitoring thread management ##########
+
+            # Thread will append a boolean here representing
+            # whether or not another user logged in during benchmarking
+            did_other_users_login = []
+            users_results_ready_event = (
+                threading.Event()
+            )  # Signals when the return boolean was appended to the return list so it can be collected
+
+            users_thread = threading.Thread(
+                target=self.__thread_monitor_users,
+                args=(
+                    did_other_users_login,
+                    users_results_ready_event,
+                    terminate_event,
+                ),
+            )
+            users_thread.start()
 
             ########## Run benchmark and collect results ##########
             results = []
@@ -100,35 +132,45 @@ class BenchmarkMonitor:
             for _ in tqdm(range(self.__N_runs)):
 
                 # Clean events and return list before running
-                sample.clear()
-                results_ready.clear()
-                return_values.clear()
+                sample_event.clear()
+                sampler_results_ready_event.clear()
+                sampler_return_values.clear()
 
                 # Check stdout of the benchmark and sample inside the Region Of Interest
                 for stdout_line in self.__run_command_generator(
                     args=[self.__benchmark]
                 ):
 
-                    if self.START_ROI_EVENT in stdout_line and not sample.is_set():
-                        sample.set()
-                    elif self.END_ROI_EVENT in stdout_line and sample.is_set():
+                    if (
+                        self.START_ROI_EVENT in stdout_line
+                        and not sample_event.is_set()
+                    ):
+                        sample_event.set()
+                    elif self.END_ROI_EVENT in stdout_line and sample_event.is_set():
 
-                        sample.clear()
+                        sample_event.clear()
 
                         # Wait for the other thread to append the samples and then collect them
-                        results_ready.wait()
-                        results.append(return_values[-1])
+                        sampler_results_ready_event.wait()
+                        results.append(sampler_return_values[-1])
 
             ########## Post processing ##########
+
+            terminate_event.set()
 
             summary_results, timeline = self.__process_samples(samples=results)
             figure = self.__create_plots(timeline=timeline)
 
+            # Wait for thread to put the result and then add it to the summary
+            users_results_ready_event.wait()
+            summary_results["did_other_users_login"] = did_other_users_login[-1]
+
             return summary_results, timeline, figure
         finally:
             ########## Cleanup ##########
-            terminate.set()
+            terminate_event.set()
             sampler_thread.join()
+            users_thread.join()
 
     ################################### Utils ####################################
 
@@ -289,12 +331,12 @@ class BenchmarkMonitor:
 
     ################################### Threaded methods ####################################
 
-    def __sample_gpu_thread(
+    def __thread_sample_gpu(
         self,
         return_values: list,
-        results_ready: threading.Event,
-        sample: threading.Event,
-        terminate: threading.Event,
+        results_ready_event: threading.Event,
+        sample_event: threading.Event,
+        terminate_event: threading.Event,
     ) -> None:
         """
         Method that should be called in a auxiliar thread to sample the GPU metrics
@@ -303,11 +345,11 @@ class BenchmarkMonitor:
         ----------
         return_values: list
             A list where the return values (GPU metrics) of this thread will be appended
-        results_ready: threading.Event
+        results_ready_event: threading.Event
             An event to signal the main thread when the samples were appended to `return_values` meaning they are ready to be collected
-        sample: threading.Event
+        sample_event: threading.Event
             An event controlling whether or not this thread should be sampling the GPU
-        terminate: threading.Event
+        terminate_event: threading.Event
             An event controlling when this thread should terminate
 
 
@@ -325,17 +367,17 @@ class BenchmarkMonitor:
 
         period = 1 / self.__sampling_frequency
 
-        while not terminate.is_set():
+        while not terminate_event.is_set():
 
             # Initialize empty samples lists and wait to start
             samples = {metric.name: [] for metric in self.METRICS}
             samples["sample_time"] = []  # Seconds since the start of the sampling
             sample_time = 0
 
-            flag = sample.wait(timeout=0.5)
+            flag = sample_event.wait(timeout=0.5)
 
             if flag:
-                while sample.is_set() and not terminate.is_set():
+                while sample_event.is_set() and not terminate_event.is_set():
 
                     # Collect samples
                     for metric in self.METRICS:
@@ -347,4 +389,31 @@ class BenchmarkMonitor:
 
                 # "Return" the collected samples
                 return_values.append(samples)
-                results_ready.set()
+                results_ready_event.set()
+
+    def __thread_monitor_users(
+        self,
+        return_value: list[bool],
+        results_ready_event: threading.Event,
+        terminate_event: threading.Event,
+    ) -> None:
+        """Thread that monitors whether or not other users used this machine (appends a boolean to `return_value`)"""
+
+        did_other_users_login = False
+
+        sleep_time = 30  # s (should be multiple of 1)
+
+        while not terminate_event.is_set():
+
+            if are_there_other_users():
+                did_other_users_login = True
+                break  # Thread can already exit since other users logged in during the benchmarking
+
+            # Equivalent to `time.sleep(sleep_time)` but more responsive to the terminate event
+            for _ in range(sleep_time):
+                if terminate_event.is_set():
+                    break
+                time.sleep(1)
+
+        return_value.append(did_other_users_login)
+        results_ready_event.set()

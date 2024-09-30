@@ -5,7 +5,7 @@ from datetime import datetime
 
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.gpu import GPU
-from my_lib.utils import collect_system_info, export_data
+from my_lib.utils import collect_system_info, export_data, are_there_other_users
 
 # Set umask to 000 to allow full read, write, and execute for everyone
 # avoiding the normal user not being able to modify the files created
@@ -82,6 +82,13 @@ def collect_cmd_args() -> argparse.Namespace:
 
 def main(data: dict):
 
+    # Check if there are other users logged in
+    if are_there_other_users():
+        print(
+            "Other users are already using this machine, stopping script to not interfere."
+        )
+        return
+
     # Collect cmd line arguments
     args = collect_cmd_args()
     data["arguments"] = vars(args)
@@ -117,7 +124,7 @@ def main(data: dict):
             export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
         except KeyboardInterrupt:
             print("\nInterrupting...")
-            exit()
+            return
 
 
 if __name__ == "__main__":

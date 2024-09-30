@@ -60,3 +60,10 @@ def collect_system_info(gpu_name: str) -> dict:
         "ram": round(ram),
         "run_start_time": time,
     }
+
+
+def are_there_other_users() -> bool:
+    """Checks if there are other users using the machine"""
+
+    # This script needs sudo, so the current user actually counts as 2 online users
+    return len(psutil.users()) > 2
