@@ -22,10 +22,13 @@ def export_data(data: dict, figure: matplotlib.figure.Figure, benchmark_path: st
     if not os.path.exists(benchmark_folder):
         os.makedirs(benchmark_folder)
 
-    # Keep a copy of the original CUDA file
-    shutil.copy(
-        benchmark_path,
-        os.path.join(benchmark_folder, f"copy_{benchmark_name}.cu"),
+    # Keep a copy of the original CUDA file and set default permissions for all users
+    os.chmod(
+        shutil.copy2(
+            benchmark_path,
+            os.path.join(benchmark_folder, f"copy_{benchmark_name}.cu"),
+        ),
+        0o666,
     )
 
     # Execution plots
