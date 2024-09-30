@@ -58,6 +58,8 @@ class GPU:
     def __exit__(self, exc_type, exc_value, traceback):
         """Restores default values and shutdown nvml"""
 
+        print("Resetting GPU clocks and shutting down nvml...")
+
         self.reset_graphics_clk()
         self.reset_memory_clk()
 

@@ -93,27 +93,31 @@ def main(data: dict):
 
     # Init the GPU and compile the benchmark
     with GPU(sleep_time=args.sleep_time) as gpu:
-        benchmark_monitor = BenchmarkMonitor(
-            benchmark=args.cuda_file,
-            gpu=gpu,
-            nvcc_path=args.nvcc,
-            N_runs=args.N_runs,
-            sampling_frequency=args.sampling_freq,
-        )
+        try:
+            benchmark_monitor = BenchmarkMonitor(
+                benchmark=args.cuda_file,
+                gpu=gpu,
+                nvcc_path=args.nvcc,
+                N_runs=args.N_runs,
+                sampling_frequency=args.sampling_freq,
+            )
 
-        data["system_info"] = collect_system_info(gpu_name=gpu.name)
+            data["system_info"] = collect_system_info(gpu_name=gpu.name)
 
-        # Set the GPU clocks
-        if args.memory_clk is not None:
-            gpu.memory_clk = args.memory_clk
-        if args.graphics_clk is not None:
-            gpu.graphics_clk = args.graphics_clk
+            # Set the GPU clocks
+            if args.memory_clk is not None:
+                gpu.memory_clk = args.memory_clk
+            if args.graphics_clk is not None:
+                gpu.graphics_clk = args.graphics_clk
 
-        data["results_summary"], data["timeline"], figure = (
-            benchmark_monitor.run_and_monitor()
-        )
+            data["results_summary"], data["timeline"], figure = (
+                benchmark_monitor.run_and_monitor()
+            )
 
-        export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
+            export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
+        except KeyboardInterrupt:
+            print("\nInterrupting...")
+            exit()
 
 
 if __name__ == "__main__":

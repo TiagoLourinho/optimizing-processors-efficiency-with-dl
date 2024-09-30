@@ -39,7 +39,7 @@ def export_data(data: dict, figure: matplotlib.figure.Figure, benchmark_path: st
     with open(full_path, "w") as json_file:
         json.dump(data, json_file, indent=4)
 
-    print(f"Results were saved in {benchmark_folder} folder, cleaning up...")
+    print(f"Results were saved in {benchmark_folder} folder.")
 
 
 def collect_system_info(gpu_name: str) -> dict:

@@ -157,7 +157,7 @@ class BenchmarkMonitor:
             flag = sample.wait(timeout=0.5)
 
             if flag:
-                while sample.is_set():
+                while sample.is_set() and not terminate.is_set():
 
                     # Collect samples
                     for metric in self.METRICS:
@@ -288,49 +288,53 @@ class BenchmarkMonitor:
         """
 
         ########## Sampler thread management ##########
+        try:
+            return_values = []  # Samples collected by the thread will be appended here
+            results_ready = (
+                threading.Event()
+            )  # Controls when the samples were appended to the return array
 
-        return_values = []  # Samples collected by the thread will be appended here
-        results_ready = (
-            threading.Event()
-        )  # Controls when the samples were appended to the return array
+            sample = threading.Event()  # Controls when the thread should be sampling
+            terminate = threading.Event()  # Controls when the thread shoud terminate
 
-        sample = threading.Event()  # Controls when the thread should be sampling
-        terminate = threading.Event()  # Controls when the thread shoud terminate
+            sampler_thread = threading.Thread(
+                target=self.__sample_gpu_thread,
+                args=(return_values, results_ready, sample, terminate),
+            )
+            sampler_thread.start()
 
-        sampler_thread = threading.Thread(
-            target=self.__sample_gpu_thread,
-            args=(return_values, results_ready, sample, terminate),
-        )
-        sampler_thread.start()
+            ########## Run benchmark and collect results ##########
+            results = []
+            print("Running benchmark and collecting samples...")
+            for _ in tqdm(range(self.__N_runs)):
 
-        ########## Run benchmark and collect results ##########
-        results = []
-        print("Running benchmark and collecting samples...")
-        for _ in tqdm(range(self.__N_runs)):
+                # Clean events and return list before running
+                sample.clear()
+                results_ready.clear()
+                return_values.clear()
 
-            # Clean events and return list before running
-            sample.clear()
-            results_ready.clear()
-            return_values.clear()
+                # Check stdout of the benchmark and sample inside the Region Of Interest
+                for stdout_line in self.__run_command_generator(
+                    args=[self.__benchmark]
+                ):
 
-            # Check stdout of the benchmark and sample inside the Region Of Interest
-            for stdout_line in self.__run_command_generator(args=[self.__benchmark]):
+                    if self.START_ROI_EVENT in stdout_line and not sample.is_set():
+                        sample.set()
+                    elif self.END_ROI_EVENT in stdout_line and sample.is_set():
 
-                if self.START_ROI_EVENT in stdout_line and not sample.is_set():
-                    sample.set()
-                elif self.END_ROI_EVENT in stdout_line and sample.is_set():
+                        sample.clear()
 
-                    sample.clear()
+                        # Wait for the other thread to append the samples and then collect them
+                        results_ready.wait()
+                        results.append(return_values[-1])
 
-                    # Wait for the other thread to append the samples and then collect them
-                    results_ready.wait()
-                    results.append(return_values[-1])
+            ########## Post processing ##########
 
-        ########## Cleanup ##########
-        terminate.set()
-        sampler_thread.join()
+            summary_results, timeline = self.__process_samples(samples=results)
+            figure = self.__create_plots(timeline=timeline)
 
-        summary_results, timeline = self.__process_samples(samples=results)
-        figure = self.__create_plots(timeline=timeline)
-
-        return summary_results, timeline, figure
+            return summary_results, timeline, figure
+        finally:
+            ########## Cleanup ##########
+            terminate.set()
+            sampler_thread.join()
