@@ -11,11 +11,10 @@
 
 1. Install [pipenv](https://pipenv.pypa.io/en/latest/).
 2. On the project root folder run `pipenv install`.
-3. Now run for example:
+3. Modify `config.py` to set the profilling behavior.
+4. Now run:
 
-`sudo -E pipenv run python3 source/profile_cuda.py benchmarks/benchmark.cu --nvcc $(which nvcc) --nvml-sampling-freq 10 --N-runs 1 --graphics-clk 2040 --memory-clk 8001 --sleep-time 1`
-
-_Note: Run `pipenv run python3 source/time_cuda.py -h` to see the command usage._
+`sudo -E pipenv run python3 source/profile_cuda.py <PATH_TO_CUDA_BENCHMARK>`
 
 ## Useful `nvidia-smi` commands
 

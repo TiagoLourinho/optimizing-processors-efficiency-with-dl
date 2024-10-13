@@ -50,7 +50,7 @@ class BenchmarkMonitor:
         benchmark: str,
         gpu: GPU,
         nvcc_path: str,
-        N_runs: str,
+        NVML_N_runs: str,
         NVML_sampling_frequency: int,
     ) -> None:
 
@@ -60,7 +60,7 @@ class BenchmarkMonitor:
         self.__benchmark = self.__compile(cuda_file=benchmark, nvcc_path=nvcc_path)
         """ The path of the CUDA binary to monitor """
 
-        self.__N_runs = N_runs
+        self.__NVML_N_runs = NVML_N_runs
         """ The number of times to run the benchmark (to calculate the median results) """
 
         self.__NVML_sampling_frequency = min(
@@ -131,7 +131,7 @@ class BenchmarkMonitor:
             ########## Run benchmark and collect results ##########
             results = []
             print("Running benchmark and collecting samples...")
-            for _ in tqdm(range(self.__N_runs)):
+            for _ in tqdm(range(self.__NVML_N_runs)):
 
                 # Clean events and return list before running
                 sample_event.clear()
