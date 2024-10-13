@@ -13,7 +13,7 @@
 2. On the project root folder run `pipenv install`.
 3. Now run for example:
 
-`sudo -E pipenv run python3 source/profile_cuda.py benchmarks/benchmark.cu --nvcc $(which nvcc) --sampling-freq 10 --N-runs 1 --graphics-clk 2040 --memory-clk 8001 --sleep-time 1`
+`sudo -E pipenv run python3 source/profile_cuda.py benchmarks/benchmark.cu --nvcc $(which nvcc) --nvml-sampling-freq 10 --N-runs 1 --graphics-clk 2040 --memory-clk 8001 --sleep-time 1`
 
 _Note: Run `pipenv run python3 source/time_cuda.py -h` to see the command usage._
 

@@ -43,10 +43,10 @@ def collect_cmd_args() -> argparse.Namespace:
     ######### Optional arguments #########
 
     parser.add_argument(
-        "--sampling-freq",
+        "--nvml-sampling-freq",
         type=int,
         default=10,
-        help="The sampling frequency to use [Hz]",
+        help="The NVML sampling frequency to use [Hz]",
     )
 
     parser.add_argument(
@@ -106,7 +106,7 @@ def main(data: dict):
                 gpu=gpu,
                 nvcc_path=args.nvcc,
                 N_runs=args.N_runs,
-                sampling_frequency=args.sampling_freq,
+                NVML_sampling_frequency=args.nvml_sampling_freq,
             )
 
             data["system_info"] = collect_system_info(gpu_name=gpu.name)

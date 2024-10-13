@@ -51,7 +51,7 @@ class BenchmarkMonitor:
         gpu: GPU,
         nvcc_path: str,
         N_runs: str,
-        sampling_frequency: int,
+        NVML_sampling_frequency: int,
     ) -> None:
 
         self.__gpu = gpu
@@ -63,7 +63,9 @@ class BenchmarkMonitor:
         self.__N_runs = N_runs
         """ The number of times to run the benchmark (to calculate the median results) """
 
-        self.__sampling_frequency = sampling_frequency
+        self.__NVML_sampling_frequency = min(
+            NVML_sampling_frequency, 50
+        )  # Limit NVML sampling frequency to 50 Hz
         """ The sampling frequency [Hz] """
 
     ################################### Public methods ####################################
@@ -365,7 +367,7 @@ class BenchmarkMonitor:
                 }
         """
 
-        period = 1 / self.__sampling_frequency
+        period = 1 / self.__NVML_sampling_frequency
 
         while not terminate_event.is_set():
 
