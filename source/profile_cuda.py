@@ -131,9 +131,14 @@ def main(data: dict, config: dict):
             if config["gpu_graphics_clk"] is not None:
                 gpu.graphics_clk = config["gpu_graphics_clk"]
 
-            data["results"]["nvml"], data["nvml_timeline"], figure = (
-                benchmark_monitor.run_and_monitor()
-            )
+            (
+                data["results"]["nvml"],
+                data["nvml_timeline"],
+                figure,
+                nvml_did_other_users_login,
+            ) = benchmark_monitor.run_and_monitor()
+
+            data["results"]["did_other_users_login"] = nvml_did_other_users_login
 
             export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
         except KeyboardInterrupt:

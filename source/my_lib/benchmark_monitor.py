@@ -70,15 +70,16 @@ class BenchmarkMonitor:
 
     ################################### Public methods ####################################
 
-    def run_and_monitor(self) -> tuple[dict, dict, matplotlib.figure.Figure]:
+    def run_and_monitor(self) -> tuple[dict, dict, matplotlib.figure.Figure, bool]:
         """
         Runs the benchmark and monitors it
 
         Returns
         -------
-        tuple[dict, dict, matplotlib.figure.Figure]
+        tuple[dict, dict, matplotlib.figure.Figure, bool]
             - dicts -> Check docstring of __process_samples + the summary one contains a `did_other_users_login` boolean key
             - A figure with the execution plots
+            - A boolean representing whether or not another user logged in during the sampling
         """
 
         try:
@@ -165,9 +166,8 @@ class BenchmarkMonitor:
 
             # Wait for thread to put the result and then add it to the summary
             users_results_ready_event.wait()
-            summary_results["did_other_users_login"] = did_other_users_login[-1]
 
-            return summary_results, timeline, figure
+            return summary_results, timeline, figure, did_other_users_login[-1]
         finally:
             ########## Cleanup ##########
             terminate_event.set()
