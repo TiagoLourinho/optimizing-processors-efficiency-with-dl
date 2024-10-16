@@ -1,10 +1,11 @@
 # Config of the profile cuda tool behavior
 config = {
-    ######################################
-    ########## Executable paths ##########
-    ######################################
+    ###########################
+    ########## Paths ##########
+    ###########################
     "nvcc_path": "/usr/local/cuda-12.4/bin/nvcc",  # str - The path of the NVCC compiler
     "ncu_path": "/usr/local/cuda-12.4/bin/ncu",  # str - The path of the NCU profiler
+    "ncu_sections_folder": None,  # str - The path of the folder to search for NCU sections. If None, then the default path is used.
     ################################
     ########## GPU config ##########
     ################################
@@ -16,10 +17,8 @@ config = {
     #################################
     "nvml_sampling_freq": 10,  # int [Hz] - The NVML sampling frequency to use (maximum is 50 Hz).
     "nvml_n_runs": 1,  # int [count] - The amount of times to run the program to get the median GPU metrics.
-    ##############################################################################
-    ########## NCU config (only one of the following should be defined) ##########
-    ##############################################################################
+    ################################
+    ########## NCU config ##########
+    ################################
     "ncu_set": "basic",  # str - The name of the set of metrics to collect using NCU.
-    "ncu_sections": None,  # list[str] - The list of sections of metrics to collect using NCU.
-    "ncu_metrics": None,  # list[str] - The list of isolated metrics to collect using NCU.
 }

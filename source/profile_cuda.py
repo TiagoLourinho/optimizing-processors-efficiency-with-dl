@@ -53,55 +53,35 @@ def collect_cmd_args() -> argparse.Namespace:
 def validate_config(config: dict):
     """Validates the current configuration (not extensively) and raises an error if invalid"""
 
-    ########## Check required keys ##########
-    required_keys = {
-        "nvcc_path",
-        "ncu_path",
-        "gpu_sleep_time",
-        "nvml_sampling_freq",
-        "nvml_n_runs",
-    }
-    if not all([config[key] is not None for key in required_keys]):
-        raise ValueError(
-            f"Missing some required keys in config. Required keys: {required_keys}"
-        )
+    get_key_config_dict = lambda required, type: tuple([required, type])
 
-    ########## Check types ##########
-    allow_none = {
-        "gpu_graphics_clk",
-        "gpu_memory_clk",
-        "ncu_set",
-        "ncu_sections",
-        "ncu_metrics",
+    keys_config = {
+        "nvcc_path": get_key_config_dict(required=True, type=str),
+        "ncu_path": get_key_config_dict(required=True, type=str),
+        "ncu_sections_folder": get_key_config_dict(required=False, type=str),
+        "gpu_graphics_clk": get_key_config_dict(required=False, type=int),
+        "gpu_memory_clk": get_key_config_dict(required=False, type=int),
+        "gpu_sleep_time": get_key_config_dict(required=True, type=int),
+        "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
+        "nvml_n_runs": get_key_config_dict(required=True, type=int),
+        "ncu_set": get_key_config_dict(required=True, type=str),
     }
-    types = {
-        "nvcc_path": str,
-        "ncu_path": str,
-        "gpu_graphics_clk": int,
-        "gpu_memory_clk": int,
-        "gpu_sleep_time": int,
-        "nvml_sampling_freq": int,
-        "nvml_n_runs": int,
-        "ncu_set": str,
-        "ncu_sections": list,
-        "ncu_metrics": list,
-    }
-    # If the value is None check if it is allowed, otherwise, check if it matches the expected type
-    if not all(
-        [
-            isinstance(value, types[key]) if value is not None else key in allow_none
-            for key, value in config.items()
-        ]
-    ):
-        raise ValueError("A config parameter has an invalid type.")
 
-    ########## Check NCU metrics ##########
-    ncu_config = {"ncu_set", "ncu_sections", "ncu_metrics"}
-    # Only ony "metric type" can be defined
-    if not sum([config[key] is not None for key in ncu_config]) == 1:
-        raise ValueError(
-            "For NCU metrics, use either and only a set, a list of sections or a list of metrics."
-        )
+    if len(keys_config) != len(config):
+        raise ValueError("Config has too many / too few parameters.")
+
+    for key, (required, type) in keys_config.items():
+
+        if key not in config:
+            raise ValueError(f"Missing config key {key}.")
+
+        value = config[key]
+
+        if value is None:
+            if required:
+                raise ValueError(f"Key {key} should be defined.")
+        elif not isinstance(value, type):
+            raise ValueError(f"Key {key} has invalid type.")
 
 
 def main(data: dict, config: dict):
