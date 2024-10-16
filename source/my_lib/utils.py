@@ -9,12 +9,21 @@ import matplotlib
 import psutil
 
 
-def export_data(data: dict, figure: matplotlib.figure.Figure, benchmark_path: str):
+def export_data(
+    data: dict,
+    figure: matplotlib.figure.Figure,
+    benchmark_path: str,
+    output_filename: str | None,
+):
     """Writes the collected data to a JSON file"""
 
     results_folder = "results"
-    benchmark_name = os.path.basename(benchmark_path).removesuffix(".cu")
-    benchmark_folder = os.path.join(results_folder, benchmark_name)
+    benchmark_filename = os.path.basename(benchmark_path).removesuffix(".cu")
+
+    if output_filename is None:
+        output_filename = benchmark_filename
+
+    benchmark_folder = os.path.join(results_folder, output_filename)
 
     # Create folders if they don't exist
     if not os.path.exists(results_folder):
@@ -26,16 +35,16 @@ def export_data(data: dict, figure: matplotlib.figure.Figure, benchmark_path: st
     os.chmod(
         shutil.copy2(
             benchmark_path,
-            os.path.join(benchmark_folder, f"copy_{benchmark_name}.cu"),
+            os.path.join(benchmark_folder, f"copy_{output_filename}.cu"),
         ),
         0o666,
     )
 
     # Execution plots
-    figure.savefig(os.path.join(benchmark_folder, f"plots_{benchmark_name}.png"))
+    figure.savefig(os.path.join(benchmark_folder, f"plots_{output_filename}.png"))
 
     # Results JSON
-    full_path = os.path.join(benchmark_folder, f"results_{benchmark_name}.json")
+    full_path = os.path.join(benchmark_folder, f"results_{output_filename}.json")
     with open(full_path, "w") as json_file:
         json.dump(data, json_file, indent=4)
 

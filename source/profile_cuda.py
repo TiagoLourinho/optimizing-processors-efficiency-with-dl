@@ -37,6 +37,16 @@ def collect_cmd_args() -> argparse.Namespace:
         "cuda_file", type=str, help="The CUDA program to compile and time."
     )
 
+    ######### Optional arguments #########
+
+    parser.add_argument(
+        "-o",
+        dest="output_filename",
+        type=str,
+        default=None,
+        help="The output file name to use.",
+    )
+
     return parser.parse_args()
 
 
@@ -140,7 +150,12 @@ def main(data: dict, config: dict):
 
             data["results"]["did_other_users_login"] = nvml_did_other_users_login
 
-            export_data(data=data, figure=figure, benchmark_path=args.cuda_file)
+            export_data(
+                data=data,
+                figure=figure,
+                benchmark_path=args.cuda_file,
+                output_filename=args.output_filename,
+            )
         except KeyboardInterrupt:
             print("\nInterrupting...")
             return

@@ -14,7 +14,7 @@
 3. Modify `config.py` to set the profilling behavior.
 4. Now run:
 
-`sudo -E pipenv run python3 source/profile_cuda.py <PATH_TO_CUDA_BENCHMARK>`
+`sudo -E pipenv run python3 source/profile_cuda.py <PATH_TO_CUDA_BENCHMARK> -o <OUTPUT_FILENAME>`
 
 ## Useful `nvidia-smi` commands
 
