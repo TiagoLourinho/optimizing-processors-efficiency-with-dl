@@ -59,6 +59,7 @@ def validate_config(config: dict):
         "nvcc_path": get_key_config_dict(required=True, type=str),
         "ncu_path": get_key_config_dict(required=True, type=str),
         "ncu_sections_folder": get_key_config_dict(required=False, type=str),
+        "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
         "gpu_graphics_clk": get_key_config_dict(required=False, type=int),
         "gpu_memory_clk": get_key_config_dict(required=False, type=int),
         "gpu_sleep_time": get_key_config_dict(required=True, type=int),

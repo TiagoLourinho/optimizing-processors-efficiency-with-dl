@@ -6,6 +6,7 @@ config = {
     "nvcc_path": "/usr/local/cuda-12.4/bin/nvcc",  # str - The path of the NVCC compiler
     "ncu_path": "/usr/local/cuda-12.4/bin/ncu",  # str - The path of the NCU profiler
     "ncu_sections_folder": None,  # str - The path of the folder to search for NCU sections. If None, then the default path is used.
+    "ncu_python_report_folder": "/opt/nvidia/nsight-compute/2024.1.1/extras/python/",  # str - The path of the folder where the NCU python report interface is located
     ################################
     ########## GPU config ##########
     ################################
