@@ -5,13 +5,12 @@ import socket
 from datetime import datetime
 
 import cpuinfo
-import matplotlib
 import psutil
 
 
 def export_data(
     data: dict,
-    figure: matplotlib.figure.Figure,
+    figure: any,  # any -> matplotlib.figure.Figure (see BenchmarkMonitor.__create_plots for more info)
     benchmark_path: str,
     output_filename: str | None,
 ):

@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from datetime import datetime
 
 from config import config
@@ -13,10 +14,11 @@ from my_lib.utils import are_there_other_users, collect_system_info, export_data
 os.umask(0o000)
 
 data: dict = {
-    "cuda_file": "",  # The CUDA file profilled
+    "invocation_command": None,  # The invocation command
     "config": {},  # The config used to profile
     "system_info": {},  # System information
     "results": {
+        "did_other_users_login": None,  # Whether or not another user logged in during metrics collection
         "nvml": {},
         "ncu": {},
     },  # The results of the profile (NVML metrics and NCU metrics)
@@ -98,7 +100,7 @@ def main(data: dict, config: dict):
 
     # Collect cmd line arguments
     args = collect_cmd_args()
-    data["cuda_file"] = args.cuda_file
+    data["invocation_command"] = "sudo -E pipenv run python3 " + " ".join(sys.argv)
     data["config"] = config
 
     print(f"Starting to run the script at {datetime.now()}.")
@@ -110,8 +112,12 @@ def main(data: dict, config: dict):
                 benchmark=args.cuda_file,
                 gpu=gpu,
                 nvcc_path=config["nvcc_path"],
-                NVML_N_runs=config["nvml_n_runs"],
-                NVML_sampling_frequency=config["nvml_sampling_freq"],
+                nvml_n_runs=config["nvml_n_runs"],
+                nvml_sampling_frequency=config["nvml_sampling_freq"],
+                ncu_path=config["ncu_path"],
+                ncu_sections_folder=config["ncu_sections_folder"],
+                ncu_python_report_folder=config["ncu_python_report_folder"],
+                ncu_set=config["ncu_set"],
             )
 
             data["system_info"] = collect_system_info(gpu_name=gpu.name)
@@ -127,9 +133,15 @@ def main(data: dict, config: dict):
                 data["nvml_timeline"],
                 figure,
                 nvml_did_other_users_login,
-            ) = benchmark_monitor.run_and_monitor()
+            ) = benchmark_monitor.run_nvml()
 
-            data["results"]["did_other_users_login"] = nvml_did_other_users_login
+            data["results"]["ncu"], ncu_did_other_users_login = (
+                benchmark_monitor.run_ncu()
+            )
+
+            data["results"]["did_other_users_login"] = (
+                nvml_did_other_users_login or ncu_did_other_users_login
+            )
 
             export_data(
                 data=data,
@@ -137,6 +149,11 @@ def main(data: dict, config: dict):
                 benchmark_path=args.cuda_file,
                 output_filename=args.output_filename,
             )
+
+            if data["results"]["did_other_users_login"]:
+                print(
+                    "\nWarning: Other users logged in during execution of the script. Script might need to run again.\n"
+                )
         except KeyboardInterrupt:
             print("\nInterrupting...")
             return

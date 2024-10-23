@@ -1,10 +1,9 @@
 import os
 import subprocess
+import sys
 import threading
 import time
 
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
@@ -34,6 +33,8 @@ class BenchmarkMonitor:
     END_ROI_EVENT = "EVENT:END_ROI"
     """ Event defining the end of the Region Of Interest """
 
+    ########## Others ##########
+
     METRICS = [
         GPUQueries.GRAPHICS_CLOCK,
         GPUQueries.MEMORY_CLOCK,
@@ -43,6 +44,9 @@ class BenchmarkMonitor:
     ]
     """ The metrics to collect from the GPU """
 
+    bin_folder = "bin"
+    """ The name of the bin folder """
+
     ######################################## Dunder methods ########################################
 
     def __init__(
@@ -50,8 +54,12 @@ class BenchmarkMonitor:
         benchmark: str,
         gpu: GPU,
         nvcc_path: str,
-        NVML_N_runs: str,
-        NVML_sampling_frequency: int,
+        nvml_n_runs: str,
+        nvml_sampling_frequency: int,
+        ncu_path: str,
+        ncu_sections_folder: str,
+        ncu_python_report_folder: str,
+        ncu_set: str,
     ) -> None:
 
         self.__gpu = gpu
@@ -60,27 +68,50 @@ class BenchmarkMonitor:
         self.__benchmark = self.__compile(cuda_file=benchmark, nvcc_path=nvcc_path)
         """ The path of the CUDA binary to monitor """
 
-        self.__NVML_N_runs = NVML_N_runs
+        #################### NVML config ####################
+
+        self.__nvml_n_runs = nvml_n_runs
         """ The number of times to run the benchmark (to calculate the median results) """
 
-        self.__NVML_sampling_frequency = min(
-            NVML_sampling_frequency, 50
+        self.__nvml_sampling_frequency = min(
+            nvml_sampling_frequency, 50
         )  # Limit NVML sampling frequency to 50 Hz
         """ The sampling frequency [Hz] """
 
+        #################### NCU config ####################
+
+        self.__ncu_path = ncu_path
+        """ The path of the NCU profiler """
+
+        self.__ncu_sections_folder = ncu_sections_folder
+        """ The path of the folder to search for NCU sections. If None, then the default path is used. """
+
+        self.__ncu_set = ncu_set
+        """ The name of the set of metrics to collect using NCU. """
+
+        sys.path.append(ncu_python_report_folder)
+        self.__ncu_report = __import__("ncu_report")
+        """ The NCU python report interface """
+
     ################################### Public methods ####################################
 
-    def run_and_monitor(self) -> tuple[dict, dict, matplotlib.figure.Figure, bool]:
+    def run_nvml(
+        self,
+    ) -> tuple[
+        dict, dict, any, bool
+    ]:  # any -> matplotlib.figure.Figure (see __create_plots for more info)
         """
-        Runs the benchmark and monitors it
+        Runs the benchmark and monitors it using nvml
 
         Returns
         -------
         tuple[dict, dict, matplotlib.figure.Figure, bool]
-            - dicts -> Check docstring of __process_samples + the summary one contains a `did_other_users_login` boolean key
+            - dicts -> Check docstring of __process_samples
             - A figure with the execution plots
             - A boolean representing whether or not another user logged in during the sampling
         """
+
+        print("Collecting kernel metrics with NVML...")
 
         try:
             ########## Sampler thread management ##########
@@ -97,7 +128,7 @@ class BenchmarkMonitor:
             )  # Controls when the thread should be sampling
             terminate_event = (
                 threading.Event()
-            )  # Controls when the thread shoud terminate
+            )  # Controls when the thread should terminate
 
             sampler_thread = threading.Thread(
                 target=self.__thread_sample_gpu,
@@ -131,8 +162,8 @@ class BenchmarkMonitor:
 
             ########## Run benchmark and collect results ##########
             results = []
-            print("Running benchmark and collecting samples...")
-            for _ in tqdm(range(self.__NVML_N_runs)):
+
+            for _ in tqdm(range(self.__nvml_n_runs)):
 
                 # Clean events and return list before running
                 sample_event.clear()
@@ -164,7 +195,7 @@ class BenchmarkMonitor:
             summary_results, timeline = self.__process_samples(samples=results)
             figure = self.__create_plots(timeline=timeline)
 
-            # Wait for thread to put the result and then add it to the summary
+            # Wait for thread to put the result
             users_results_ready_event.wait()
 
             return summary_results, timeline, figure, did_other_users_login[-1]
@@ -174,6 +205,102 @@ class BenchmarkMonitor:
             sampler_thread.join()
             users_thread.join()
 
+    def run_ncu(self) -> tuple[dict, bool]:
+        """
+        Runs the benchmark and performs the benchmork using ncu
+
+        Returns
+        -------
+        tuple[dict, bool]
+            - A dict with the metrics collected
+            - A boolean representing whether or not another user logged in during the sampling
+        """
+
+        print("Collecting kernel metrics with NCU...")
+
+        report_path = os.path.join(
+            self.bin_folder,
+            os.path.basename(self.__benchmark).replace(".out", ".ncu-rep"),
+        )
+
+        try:
+
+            ############################## Users monitoring thread management ##############################
+
+            # Thread will append a boolean here representing
+            # whether or not another user logged in during benchmarking
+            did_other_users_login = []
+            users_results_ready_event = (
+                threading.Event()
+            )  # Signals when the return boolean was appended to the return list so it can be collected
+            terminate_event = (
+                threading.Event()
+            )  # Controls when the thread should terminate
+
+            users_thread = threading.Thread(
+                target=self.__thread_monitor_users,
+                args=(
+                    did_other_users_login,
+                    users_results_ready_event,
+                    terminate_event,
+                ),
+            )
+            users_thread.start()
+
+            ############################## Run NCU ##############################
+
+            # Example command:
+            # sudo /usr/local/cuda-12.4/bin/ncu -f -o bin/tiny.ncu-rep --section-folder /opt/nvidia/nsight-compute/2024.1.1/sections --set basic bin/tiny.out
+
+            command = ["sudo", self.__ncu_path, "-f", "-o", report_path]
+
+            if self.__ncu_sections_folder is not None:
+                command += ["--section-folder", self.__ncu_sections_folder]
+
+            command += ["--set", self.__ncu_set, self.__benchmark]
+
+            # Use list to fully run the generator
+            list(self.__run_command_generator(args=command))
+
+            terminate_event.set()  # NCU already stopped collecting the metrics
+
+            ############################## Collect results ##############################
+
+            # Examples and docs:
+            # https://docs.nvidia.com/nsight-compute/CustomizationGuide/index.html#basic-usage
+
+            context = self.__ncu_report.load_report(report_path)
+
+            if context.num_ranges() != 1:
+                raise ValueError("Tool is only expecting 1 range to exist.")
+
+            range = context.range_by_idx(0)
+
+            if range.num_actions() != 1:
+                raise ValueError("Tool is only expecting 1 kernel to exist.")
+
+            action = range.action_by_idx(0)
+
+            # Identifies launch or device attributes so they can be removed
+            other_type = getattr(self.__ncu_report, "IMetric").MetricType_OTHER
+
+            collected_metrics = {
+                metric_name: action[metric_name].value()
+                for metric_name in action.metric_names()
+                if action[metric_name].metric_type()
+                != other_type  # Filter our non hardware metrics
+            }
+
+            # Wait for thread to put the result before collecting it
+            users_results_ready_event.wait()
+
+            return collected_metrics, did_other_users_login[-1]
+        finally:
+            ########## Cleanup ##########
+            terminate_event.set()
+
+            users_thread.join()
+
     ################################### Utils ####################################
 
     def __compile(self, cuda_file: str, nvcc_path: str) -> str:
@@ -181,13 +308,11 @@ class BenchmarkMonitor:
 
         print("Compiling benchmark...")
 
-        bin_folder = "bin"
-
-        if not os.path.exists(bin_folder):
-            os.makedirs(bin_folder)
+        if not os.path.exists(self.bin_folder):
+            os.makedirs(self.bin_folder)
 
         output_path = os.path.join(
-            bin_folder, os.path.basename(cuda_file).replace(".cu", ".out")
+            self.bin_folder, os.path.basename(cuda_file).replace(".cu", ".out")
         )
 
         nvcc_command = [
@@ -282,8 +407,15 @@ class BenchmarkMonitor:
 
     def __create_plots(
         self, timeline: dict[str, list[float]]
-    ) -> matplotlib.figure.Figure:
+    ) -> any:  # any -> matplotlib.figure.Figure (see below for more info)
         """Creates the matplotlib figure with the metrics timeline"""
+
+        # Import locally as NCU and matplotlib use different C++ binaries
+        # and that would result in the following error:
+        #
+        # terminate called after throwing an instance of 'std::bad_cast'
+        # what():  std::bad_cast
+        import matplotlib.pyplot as plt
 
         n_metrics = len(self.METRICS)
         n_columns = 2
@@ -367,7 +499,7 @@ class BenchmarkMonitor:
                 }
         """
 
-        period = 1 / self.__NVML_sampling_frequency
+        period = 1 / self.__nvml_sampling_frequency
 
         while not terminate_event.is_set():
 
