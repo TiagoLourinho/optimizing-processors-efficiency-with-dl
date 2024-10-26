@@ -22,7 +22,7 @@ data: dict = {
         "nvml": {},
         "ncu": {},
     },  # The results of the profile (NVML metrics and NCU metrics)
-    "nvml_timeline": {},  # The NVML samples collected that form a timeline
+    "nvml_samples": {},  # The NVML samples collected
 }
 
 
@@ -130,7 +130,7 @@ def main(data: dict, config: dict):
 
             (
                 data["results"]["nvml"],
-                data["nvml_timeline"],
+                data["nvml_samples"],
                 figure,
                 nvml_did_other_users_login,
             ) = benchmark_monitor.run_nvml()

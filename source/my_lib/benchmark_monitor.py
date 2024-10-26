@@ -10,6 +10,20 @@ from tqdm import tqdm
 from .gpu import GPU, GPUQueries
 from .utils import are_there_other_users
 
+RUN_SAMPLES = dict[str, list[float]]
+""" 
+The list of samples collected during a run per each metric type
+
+Example: key GRAPHICS_CLOCK -> [810, 810, ... , 1995]
+ """
+
+NVML_RESULTS_SUMMARY = dict[str, float]
+""" 
+The dictionary containing the median value (across all runs) of the metrics average (within a run). 
+
+Example: key median_GRAPHICS_CLOCK -> 810 
+"""
+
 
 class BenchmarkMonitor:
     """
@@ -98,15 +112,15 @@ class BenchmarkMonitor:
     def run_nvml(
         self,
     ) -> tuple[
-        dict, dict, any, bool
+        NVML_RESULTS_SUMMARY, RUN_SAMPLES, any, bool
     ]:  # any -> matplotlib.figure.Figure (see __create_plots for more info)
         """
         Runs the benchmark and monitors it using nvml
 
         Returns
         -------
-        tuple[dict, dict, matplotlib.figure.Figure, bool]
-            - dicts -> Check docstring of __process_samples
+        tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, matplotlib.figure.Figure, bool]
+            - NVML_RESULTS_SUMMARY, RUN_SAMPLES -> Check docstring of __process_samples
             - A figure with the execution plots
             - A boolean representing whether or not another user logged in during the sampling
         """
@@ -192,13 +206,15 @@ class BenchmarkMonitor:
 
             terminate_event.set()
 
-            summary_results, timeline = self.__process_samples(samples=results)
-            figure = self.__create_plots(timeline=timeline)
+            summary_results, nvml_samples = self.__process_samples(
+                all_run_samples=results
+            )
+            figure = self.__create_plots(run_samples=nvml_samples)
 
             # Wait for thread to put the result
             users_results_ready_event.wait()
 
-            return summary_results, timeline, figure, did_other_users_login[-1]
+            return summary_results, nvml_samples, figure, did_other_users_login[-1]
         finally:
             ########## Cleanup ##########
             terminate_event.set()
@@ -351,19 +367,24 @@ class BenchmarkMonitor:
 
     ################################### Data post processing ####################################
 
-    def __process_samples(self, samples: list[dict[str, list[float]]]):
+    def __process_samples(
+        self, all_run_samples: list[RUN_SAMPLES]
+    ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES]:
         """
-        Given the raw `samples` list calculates the median and returns the summary results and the timeline
+        Given all the samples collected for each run,
+        calculates the average value per each metric within each run and
+        then calculates the median value across runs,
+        yielding the "results summary"
 
         Parameters
         ----------
-        samples: list[dict[str, list[float]]]
-            The list of length 'N_runs' containing the output of __sample_gpu_thread method per each run
+        all_run_samples: list[SAMPLES_PER_TYPE]
+            The list of length 'N_runs' containing the output of __thread_sample_gpu method per each run
 
         Returns
         -------
-        tuple[dict, dict]
-            - The dictionary with the summary of the main metrics collected (the median was used across runs)
+        tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES]
+            - The dictionary with the summary of the main metrics collected
                 Example:
                     {
                         median_GRAPHICS_CLOCK: 1600,
@@ -371,44 +392,46 @@ class BenchmarkMonitor:
                         ...
                         median_run_time: 23
                     }
-            - The timeline of the metrics collected that can be plotted
+            - The NVML samples of the metrics collected that can be plotted
+            (corresponding to the run with the runtime closest to the median)
                 Example:
-                    Check docstring of __sample_gpu_thread method
+                    Check docstring of __thread_sample_gpu method
         """
-        n_runs = len(samples)
+        n_runs = len(all_run_samples)
         n_metrics = len(self.METRICS)
 
-        # Compute the medians of each metric per run
-        # (the median is used to reduce the impact of potencial spikes on the metrics caused by the sensors or etc)
-        medians_per_run = np.full((n_runs, n_metrics), np.nan)
+        # Compute the averages of each metric per run
+        averages_per_run = np.full((n_runs, n_metrics), np.nan)
         run_times_per_run = np.full(n_runs, np.nan)
 
         for run_index in range(n_runs):
             for metric_index, metric in enumerate(self.METRICS):
-                medians_per_run[run_index, metric_index] = np.median(
-                    samples[run_index][metric.name]
+                averages_per_run[run_index, metric_index] = np.average(
+                    all_run_samples[run_index][metric.name]
                 )
 
             # Collect the run time (last sample time)
-            run_times_per_run[run_index] = samples[run_index]["sample_time"][-1]
+            run_times_per_run[run_index] = all_run_samples[run_index]["sample_time"][-1]
 
         # Compute the median value per metric considering all the runs
-        medians = {}
+        median_values = {}
         for metric_index, metric in enumerate(self.METRICS):
-            medians[f"median_{metric.name}"] = float(
-                np.median(medians_per_run[:, metric_index])
+            median_values[f"median_{metric.name}"] = float(
+                np.median(averages_per_run[:, metric_index])
             )
-        medians["median_run_time"] = float(np.median(run_times_per_run))
+        median_values["median_run_time"] = float(np.median(run_times_per_run))
 
         # Get the index of the run that had the closest run time to the median
-        index = np.argmin(np.absolute(run_times_per_run - medians["median_run_time"]))
+        index = np.argmin(
+            np.absolute(run_times_per_run - median_values["median_run_time"])
+        )
 
-        return medians, samples[index]
+        return median_values, all_run_samples[index]
 
     def __create_plots(
-        self, timeline: dict[str, list[float]]
+        self, run_samples: RUN_SAMPLES
     ) -> any:  # any -> matplotlib.figure.Figure (see below for more info)
-        """Creates the matplotlib figure with the metrics timeline"""
+        """Creates the matplotlib figure with the metrics samples for a run"""
 
         # Import locally as NCU and matplotlib use different C++ binaries
         # and that would result in the following error:
@@ -429,13 +452,16 @@ class BenchmarkMonitor:
 
             # Line
             flat_axs[metric_index].plot(
-                timeline["sample_time"], timeline[metric.name], color="blue", zorder=0
+                run_samples["sample_time"],
+                run_samples[metric.name],
+                color="blue",
+                zorder=0,
             )
 
             # Sample points
             flat_axs[metric_index].scatter(
-                timeline["sample_time"],
-                timeline[metric.name],
+                run_samples["sample_time"],
+                run_samples[metric.name],
                 marker="o",
                 s=1,
                 color="red",
@@ -489,7 +515,7 @@ class BenchmarkMonitor:
 
         Returns
         -------
-        dict[str, list[float]] (appended to `return_values`)
+        SAMPLES_PER_TYPE (appended to `return_values`)
             Example:
                 {
                     GRAPHICS_CLOCK: [1500, 1550, 1600, 1575, 1620],
