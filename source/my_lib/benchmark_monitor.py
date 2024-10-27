@@ -265,10 +265,19 @@ class BenchmarkMonitor:
 
             ############################## Run NCU ##############################
 
+            # Docs: https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html#command-line-options
             # Example command:
-            # sudo /usr/local/cuda-12.4/bin/ncu -f -o bin/tiny.ncu-rep --section-folder /opt/nvidia/nsight-compute/2024.1.1/sections --set basic bin/tiny.out
+            # sudo /usr/local/cuda-12.4/bin/ncu -f --clock-control none -o bin/tiny.ncu-rep --section-folder /opt/nvidia/nsight-compute/2024.1.1/sections --set basic bin/tiny.out
 
-            command = ["sudo", self.__ncu_path, "-f", "-o", report_path]
+            command = [
+                "sudo",
+                self.__ncu_path,
+                "-f",
+                "--clock-control",  # clock-control=none allows NVML to externally manage the frequencies
+                "none",
+                "-o",
+                report_path,
+            ]
 
             if self.__ncu_sections_folder is not None:
                 command += ["--section-folder", self.__ncu_sections_folder]
