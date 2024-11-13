@@ -88,8 +88,8 @@ class BenchmarkMonitor:
         """ The number of times to run the benchmark (to calculate the median results) """
 
         self.__nvml_sampling_frequency = min(
-            nvml_sampling_frequency, 50
-        )  # Limit NVML sampling frequency to 50 Hz
+            nvml_sampling_frequency, 100
+        )  # Limit NVML sampling frequency to 100 Hz
         """ The sampling frequency [Hz] """
 
         #################### NCU config ####################
