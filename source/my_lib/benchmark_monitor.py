@@ -22,7 +22,7 @@ NVML_RESULTS_SUMMARY = dict[str, float]
 """ 
 The dictionary containing the median value (across all runs) of the metrics average (within a run). 
 
-Example: key median_GRAPHICS_CLOCK -> 810 
+Example: key average_GRAPHICS_CLOCK -> 810 
 """
 
 
@@ -350,8 +350,8 @@ class BenchmarkMonitor:
             - The dictionary with the summary of the main metrics collected
                 Example:
                     {
-                        median_GRAPHICS_CLOCK: 1600,
-                        median_TEMPERATURE: 67,
+                        average_GRAPHICS_CLOCK: 1600,
+                        average_TEMPERATURE: 67,
                         ...
                         median_run_time: 23
                     }
@@ -379,7 +379,7 @@ class BenchmarkMonitor:
         # Compute the median value per metric considering all the runs
         median_values = {}
         for metric_index, metric in enumerate(self.METRICS):
-            median_values[f"median_{metric.name}"] = float(
+            median_values[f"average_{metric.name}"] = float(
                 np.median(averages_per_run[:, metric_index])
             )
         median_values["median_run_time"] = float(np.median(run_times_per_run))
