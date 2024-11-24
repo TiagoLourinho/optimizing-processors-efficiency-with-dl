@@ -3,12 +3,13 @@ import subprocess
 import sys
 import threading
 import time
+from collections import defaultdict
 
 import numpy as np
 from tqdm import tqdm
 
 from .gpu import GPU, GPUQueries
-from .utils import are_there_other_users
+from .utils import MatplotlibFigure, are_there_other_users
 
 RUN_SAMPLES = dict[str, list[float]]
 """ 
@@ -111,15 +112,13 @@ class BenchmarkMonitor:
 
     def run_nvml(
         self,
-    ) -> tuple[
-        NVML_RESULTS_SUMMARY, RUN_SAMPLES, any, bool
-    ]:  # any -> matplotlib.figure.Figure (see __create_plots for more info)
+    ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, MatplotlibFigure, bool]:
         """
         Runs the benchmark and monitors it using nvml
 
         Returns
         -------
-        tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, matplotlib.figure.Figure, bool]
+        tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, MatplotlibFigure, bool]
             - NVML_RESULTS_SUMMARY, RUN_SAMPLES -> Check docstring of __process_samples
             - A figure with the execution plots
             - A boolean representing whether or not another user logged in during the sampling
@@ -202,14 +201,16 @@ class BenchmarkMonitor:
                         sampler_results_ready_event.wait()
                         results.append(sampler_return_values[-1])
 
+                time.sleep(self.__gpu.sleep_time)
+
             ########## Post processing ##########
 
             terminate_event.set()
 
-            summary_results, nvml_samples = self.__process_samples(
+            summary_results, nvml_samples = self.__process_nvml_samples(
                 all_run_samples=results
             )
-            figure = self.__create_plots(run_samples=nvml_samples)
+            figure = self.__create_nvml_plots(run_samples=nvml_samples)
 
             # Wait for thread to put the result
             users_results_ready_event.wait()
@@ -267,7 +268,8 @@ class BenchmarkMonitor:
 
             # Docs: https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html#command-line-options
             # Example command:
-            # sudo /usr/local/cuda-12.4/bin/ncu -f --clock-control none -o bin/tiny.ncu-rep --section-folder /opt/nvidia/nsight-compute/2024.1.1/sections --set basic bin/tiny.out
+            # sudo /usr/local/cuda-12.4/bin/ncu -f --clock-control none -o bin/tiny.ncu-rep
+            # --section-folder /opt/nvidia/nsight-compute/2024.1.1/sections --set basic bin/tiny.out
 
             command = [
                 "sudo",
@@ -291,30 +293,7 @@ class BenchmarkMonitor:
 
             ############################## Collect results ##############################
 
-            # Examples and docs:
-            # https://docs.nvidia.com/nsight-compute/CustomizationGuide/index.html#basic-usage
-
-            context = self.__ncu_report.load_report(report_path)
-
-            if context.num_ranges() != 1:
-                raise ValueError("Tool is only expecting 1 range to exist.")
-
-            range = context.range_by_idx(0)
-
-            if range.num_actions() != 1:
-                raise ValueError("Tool is only expecting 1 kernel to exist.")
-
-            action = range.action_by_idx(0)
-
-            # Identifies launch or device attributes so they can be removed
-            other_type = getattr(self.__ncu_report, "IMetric").MetricType_OTHER
-
-            collected_metrics = {
-                metric_name: action[metric_name].value()
-                for metric_name in action.metric_names()
-                if action[metric_name].metric_type()
-                != other_type  # Filter our non hardware metrics
-            }
+            collected_metrics = self.__aggregate_ncu_metrics(report_path)
 
             # Wait for thread to put the result before collecting it
             users_results_ready_event.wait()
@@ -376,11 +355,11 @@ class BenchmarkMonitor:
 
     ################################### Data post processing ####################################
 
-    def __process_samples(
+    def __process_nvml_samples(
         self, all_run_samples: list[RUN_SAMPLES]
     ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES]:
         """
-        Given all the samples collected for each run,
+        Given all the samples collected for each NVML run,
         calculates the average value per each metric within each run and
         then calculates the median value across runs,
         yielding the "results summary"
@@ -437,9 +416,7 @@ class BenchmarkMonitor:
 
         return median_values, all_run_samples[index]
 
-    def __create_plots(
-        self, run_samples: RUN_SAMPLES
-    ) -> any:  # any -> matplotlib.figure.Figure (see below for more info)
+    def __create_nvml_plots(self, run_samples: RUN_SAMPLES) -> MatplotlibFigure:
         """Creates the matplotlib figure with the metrics samples for a run"""
 
         # Import locally as NCU and matplotlib use different C++ binaries
@@ -497,6 +474,55 @@ class BenchmarkMonitor:
         )
 
         return fig
+
+    def __aggregate_ncu_metrics(self, report_path: str) -> dict[str, float]:
+        """
+        Aggregates the NCU metrics (considering multiple ranges and actions) and returns the dictionary with the metrics
+
+        Parameters
+        ----------
+        report_path: str
+            The path where to find the NCU report object
+
+        Returns
+        -------
+        dict[str, float]
+            The dictionary whose keys are the metric's names and values are the metrics itself
+        """
+
+        # Examples and docs of using NCU python report interface:
+        # https://docs.nvidia.com/nsight-compute/CustomizationGuide/index.html#basic-usage
+
+        context = self.__ncu_report.load_report(report_path)
+
+        # Identifies launch or device attributes so they can be removed
+        other_type = getattr(self.__ncu_report, "IMetric").MetricType_OTHER
+
+        N_total_kernels = sum(
+            [
+                context.range_by_idx(range_i).num_actions()
+                for range_i in range(context.num_ranges())
+            ]
+        )
+
+        # Loop through all ranges and actions to aggregate by averaging
+        collected_metrics = defaultdict(float)
+        for ncu_range_i in range(context.num_ranges()):
+            ncu_range = context.range_by_idx(ncu_range_i)
+
+            for action_j in range(ncu_range.num_actions()):
+                action = ncu_range.action_by_idx(action_j)
+
+                for metric_name in action.metric_names():
+                    metric = action[metric_name]
+                    metric_type = metric.metric_type()
+                    metric_value = metric.value()
+
+                    if metric_type != other_type:
+                        # Average the partials already
+                        collected_metrics[metric_name] += metric_value / N_total_kernels
+
+        return collected_metrics
 
     ################################### Threaded methods ####################################
 

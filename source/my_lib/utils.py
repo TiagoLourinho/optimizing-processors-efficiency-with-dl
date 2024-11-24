@@ -3,14 +3,22 @@ import os
 import shutil
 import socket
 from datetime import datetime
+from typing import Any
 
 import cpuinfo
 import psutil
 
+MatplotlibFigure = Any
+""" 
+Placeholder for the matplotlib figure class (not direclty imported because of C++ library incompatibilities)
+
+Check: https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure
+"""
+
 
 def export_data(
     data: dict,
-    figure: any,  # any -> matplotlib.figure.Figure (see BenchmarkMonitor.__create_plots for more info)
+    figure: MatplotlibFigure,
     benchmark_path: str,
     output_filename: str | None,
 ):
