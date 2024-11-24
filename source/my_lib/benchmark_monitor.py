@@ -260,6 +260,7 @@ class BenchmarkMonitor:
                     did_other_users_login,
                     users_results_ready_event,
                     terminate_event,
+                    True,  # Let the thread know that NCU will be running
                 ),
             )
             users_thread.start()
@@ -591,6 +592,7 @@ class BenchmarkMonitor:
         return_value: list[bool],
         results_ready_event: threading.Event,
         terminate_event: threading.Event,
+        running_ncu: bool = False,
     ) -> None:
         """Thread that monitors whether or not other users used this machine (appends a boolean to `return_value`)"""
 
@@ -600,7 +602,7 @@ class BenchmarkMonitor:
 
         while not terminate_event.is_set():
 
-            if are_there_other_users():
+            if are_there_other_users(running_ncu=running_ncu):
                 did_other_users_login = True
                 break  # Thread can already exit since other users logged in during the benchmarking
 

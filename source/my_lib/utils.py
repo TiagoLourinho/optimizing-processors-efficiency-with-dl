@@ -78,8 +78,14 @@ def collect_system_info(gpu_name: str) -> dict:
     }
 
 
-def are_there_other_users() -> bool:
+def are_there_other_users(running_ncu=False) -> bool:
     """Checks if there are other users using the machine"""
 
     # This script needs sudo, so the current user actually counts as 2 online users
-    return len(psutil.users()) > 2
+    max_len = 2
+
+    # NCU spawns another user "root", so account for that
+    if running_ncu:
+        max_len += 1
+
+    return len(psutil.users()) > max_len
