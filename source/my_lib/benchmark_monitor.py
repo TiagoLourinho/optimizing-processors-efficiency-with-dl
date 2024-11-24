@@ -27,26 +27,7 @@ Example: key median_GRAPHICS_CLOCK -> 810
 
 
 class BenchmarkMonitor:
-    """
-    Monitors and samples GPU metrics while executing a CUDA benchmark
-
-    Assumes that the benchmark writes the necessary events to stdout in real time (flushing the buffer), namely like:
-
-    `std::cout << "EVENT:START_ROI" << std::endl;`
-
-    and then
-
-    `std::cout << "EVENT:END_ROI" << std::endl;`
-
-    """
-
-    ########## Events ##########
-
-    START_ROI_EVENT = "EVENT:START_ROI"
-    """ Event defining the start of the Region Of Interest """
-
-    END_ROI_EVENT = "EVENT:END_ROI"
-    """ Event defining the end of the Region Of Interest """
+    """Monitors and samples GPU metrics while executing a CUDA benchmark"""
 
     ########## Others ##########
 
@@ -183,23 +164,16 @@ class BenchmarkMonitor:
                 sampler_results_ready_event.clear()
                 sampler_return_values.clear()
 
-                # Check stdout of the benchmark and sample inside the Region Of Interest
-                for stdout_line in self.__run_command_generator(
-                    args=[self.__benchmark]
-                ):
+                # Start sampling and run the application
+                sample_event.set()
+                list(
+                    self.__run_command_generator(args=[self.__benchmark])
+                )  # Use list to fully run the generator
+                sample_event.clear()
 
-                    if (
-                        self.START_ROI_EVENT in stdout_line
-                        and not sample_event.is_set()
-                    ):
-                        sample_event.set()
-                    elif self.END_ROI_EVENT in stdout_line and sample_event.is_set():
-
-                        sample_event.clear()
-
-                        # Wait for the other thread to append the samples and then collect them
-                        sampler_results_ready_event.wait()
-                        results.append(sampler_return_values[-1])
+                # Wait for the other thread to append the samples and then collect them
+                sampler_results_ready_event.wait()
+                results.append(sampler_return_values[-1])
 
                 time.sleep(self.__gpu.sleep_time)
 
