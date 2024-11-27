@@ -2,10 +2,10 @@
 
 ## Enviroment versions
 
-- OS: [Ubuntu 22.04.5 LTS](https://releases.ubuntu.com/jammy/)
+- OS: [Pop!\_OS 22.04 LTS](https://pop.system76.com/)
 - Python: [3.10.12](https://www.python.org/downloads/release/python-31012/)
-- NVIDIA Driver: [550.107.02](https://www.nvidia.com/en-us/drivers/details/230357/)
-- CUDA Toolkit: [12.4.1](https://developer.nvidia.com/cuda-12-4-1-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_network)
+- NVIDIA Driver: [560.35.03](https://www.nvidia.com/en-us/drivers/details/230918/)
+- CUDA Toolkit: [12.6.2](https://developer.nvidia.com/cuda-12-6-2-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
 
 ## Usage
 
