@@ -40,7 +40,7 @@ class BenchmarkMonitor:
     ]
     """ The metrics to collect from the GPU """
 
-    bin_folder = "bin"
+    bin_folder = "./bin"
     """ The name of the bin folder """
 
     ######################################## Dunder methods ########################################
@@ -221,7 +221,7 @@ class BenchmarkMonitor:
 
         report_path = os.path.join(
             self.bin_folder,
-            os.path.basename(self.__benchmark).replace(".out", ".ncu-rep"),
+            os.path.basename(self.__benchmark).replace(".out", "") + ".ncu-rep",
         )
 
         try:

@@ -24,7 +24,7 @@ def export_data(
 ):
     """Writes the collected data to a JSON file"""
 
-    results_folder = "results"
+    results_folder = "./results"
     extension = os.path.splitext(benchmark_path)[1]
     benchmark_filename = os.path.basename(benchmark_path).removesuffix(extension)
 
