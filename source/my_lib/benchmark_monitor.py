@@ -48,6 +48,7 @@ class BenchmarkMonitor:
     def __init__(
         self,
         benchmark: str,
+        benchmark_args: list[str],
         gpu: GPU,
         nvcc_path: str,
         nvml_n_runs: str,
@@ -61,8 +62,15 @@ class BenchmarkMonitor:
         self.__gpu = gpu
         """ The GPU running the benchmark """
 
-        self.__benchmark = self.__compile(cuda_file=benchmark, nvcc_path=nvcc_path)
+        self.__benchmark = (
+            self.__compile(cuda_file=benchmark, nvcc_path=nvcc_path)
+            if os.path.splitext(benchmark)[1] != ""
+            else benchmark  # If the benchmark doesn't have an extension like ".cu" or ".cpp" it means it is already compiled
+        )
         """ The path of the CUDA binary to monitor """
+
+        self.__benchmark_args = benchmark_args
+        """ The arguments of the benchmark being profilled """
 
         #################### NVML config ####################
 
@@ -167,7 +175,9 @@ class BenchmarkMonitor:
                 # Start sampling and run the application
                 sample_event.set()
                 list(
-                    self.__run_command_generator(args=[self.__benchmark])
+                    self.__run_command_generator(
+                        args=[self.__benchmark, *self.__benchmark_args]
+                    )
                 )  # Use list to fully run the generator
                 sample_event.clear()
 
@@ -259,7 +269,12 @@ class BenchmarkMonitor:
             if self.__ncu_sections_folder is not None:
                 command += ["--section-folder", self.__ncu_sections_folder]
 
-            command += ["--set", self.__ncu_set, self.__benchmark]
+            command += [
+                "--set",
+                self.__ncu_set,
+                self.__benchmark,
+                *self.__benchmark_args,
+            ]
 
             # Use list to fully run the generator
             list(self.__run_command_generator(args=command))

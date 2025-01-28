@@ -25,7 +25,8 @@ def export_data(
     """Writes the collected data to a JSON file"""
 
     results_folder = "results"
-    benchmark_filename = os.path.basename(benchmark_path).removesuffix(".cu")
+    extension = os.path.splitext(benchmark_path)[1]
+    benchmark_filename = os.path.basename(benchmark_path).removesuffix(extension)
 
     if output_filename is None:
         output_filename = benchmark_filename
@@ -42,7 +43,7 @@ def export_data(
     os.chmod(
         shutil.copy2(
             benchmark_path,
-            os.path.join(benchmark_folder, f"copy_{output_filename}.cu"),
+            os.path.join(benchmark_folder, f"copy_{output_filename}{extension}"),
         ),
         0o666,
     )

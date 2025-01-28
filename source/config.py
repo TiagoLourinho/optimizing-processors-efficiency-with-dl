@@ -16,7 +16,7 @@ config = {
     #################################
     ########## NVML config ##########
     #################################
-    "nvml_sampling_freq": 75,  # int [Hz] - The NVML sampling frequency to use (maximum is 100 Hz).
+    "nvml_sampling_freq": 100,  # int [Hz] - The NVML sampling frequency to use (maximum is 100 Hz).
     "nvml_n_runs": 3,  # int [count] - The amount of times to run the program to get the median GPU metrics.
     ################################
     ########## NCU config ##########

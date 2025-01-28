@@ -26,7 +26,7 @@ data: dict = {
 }
 
 
-def collect_cmd_args() -> argparse.Namespace:
+def collect_cmd_args() -> tuple[argparse.Namespace, list[str]]:
     """Collects the commnad line arguments"""
 
     parser = argparse.ArgumentParser(
@@ -49,7 +49,7 @@ def collect_cmd_args() -> argparse.Namespace:
         help="The output file name to use.",
     )
 
-    return parser.parse_args()
+    return parser.parse_known_args()
 
 
 def validate_config(config: dict):
@@ -99,8 +99,10 @@ def main(data: dict, config: dict):
     validate_config(config)
 
     # Collect cmd line arguments
-    args = collect_cmd_args()
-    data["invocation_command"] = "sudo -E pipenv run python3 " + " ".join(sys.argv)
+    args, benchmark_args = collect_cmd_args()
+    data["invocation_command"] = (
+        'sudo -E env PATH="$PATH" pipenv run python3 ' + " ".join(sys.argv)
+    )
     data["config"] = config
 
     print(f"Starting to run the script at {datetime.now()}.")
@@ -110,6 +112,7 @@ def main(data: dict, config: dict):
         try:
             benchmark_monitor = BenchmarkMonitor(
                 benchmark=args.cuda_file,
+                benchmark_args=benchmark_args,
                 gpu=gpu,
                 nvcc_path=config["nvcc_path"],
                 nvml_n_runs=config["nvml_n_runs"],
