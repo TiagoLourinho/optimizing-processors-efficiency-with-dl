@@ -100,9 +100,7 @@ def main(data: dict, config: dict):
 
     # Collect cmd line arguments
     args, benchmark_args = collect_cmd_args()
-    data["invocation_command"] = (
-        'sudo -E env PATH="$PATH" pipenv run python3 ' + " ".join(sys.argv)
-    )
+    data["invocation_command"] = 'sudo PATH="$PATH" python3 ' + " ".join(sys.argv)
     data["config"] = config
 
     print(f"Starting to run the script at {datetime.now()}.")
