@@ -110,19 +110,19 @@ class InstructionType(Enum):
 class IntegerArithmeticInstructions(Enum):
     """Possible Integer Arithmetic Instructions (https://docs.nvidia.com/cuda/parallel-thread-execution/#integer-arithmetic-instructions)"""
 
-    ADD = "add"
-    SUB = "sub"
-    MUL = "mul"
-    MAD = "mad"
+    ADD = "add"  # WARNING: Appears on more than one instruction type
+    SUB = "sub"  # WARNING: Appears on more than one instruction type
+    MUL = "mul"  # WARNING: Appears on more than one instruction type
+    MAD = "mad"  # WARNING: Appears on more than one instruction type
     MUL24 = "mul24"
     MAD24 = "mad24"
     SAD = "sad"
-    DIV = "div"
+    DIV = "div"  # WARNING: Appears on more than one instruction type
     REM = "rem"
-    ABS = "abs"
-    NEG = "neg"
-    MIN = "min"
-    MAX = "max"
+    ABS = "abs"  # WARNING: Appears on more than one instruction type
+    NEG = "neg"  # WARNING: Appears on more than one instruction type
+    MIN = "min"  # WARNING: Appears on more than one instruction type
+    MAX = "max"  # WARNING: Appears on more than one instruction type
     POPC = "popc"
     CLZ = "clz"
     BFIND = "bfind"
@@ -152,54 +152,54 @@ class FloatingPointInstructions(Enum):
 
     TESTP = "testp"
     COPYSIGN = "copysign"
-    ADD = "add"
-    SUB = "sub"
-    MUL = "mul"
-    FMA = "fma"
-    MAD = "mad"
-    DIV = "div"
-    ABS = "abs"
-    NEG = "neg"
-    MIN = "min"
-    MAX = "max"
+    ADD = "add"  # WARNING: Appears on more than one instruction type
+    SUB = "sub"  # WARNING: Appears on more than one instruction type
+    MUL = "mul"  # WARNING: Appears on more than one instruction type
+    FMA = "fma"  # WARNING: Appears on more than one instruction type
+    MAD = "mad"  # WARNING: Appears on more than one instruction type
+    DIV = "div"  # WARNING: Appears on more than one instruction type
+    ABS = "abs"  # WARNING: Appears on more than one instruction type
+    NEG = "neg"  # WARNING: Appears on more than one instruction type
+    MIN = "min"  # WARNING: Appears on more than one instruction type
+    MAX = "max"  # WARNING: Appears on more than one instruction type
     RCP = "rcp"
     SQRT = "sqrt"
     RSQRT = "rsqrt"
     SIN = "sin"
     COS = "cos"
     LG2 = "lg2"
-    EX2 = "ex2"
-    TANH = "tanh"
+    EX2 = "ex2"  # WARNING: Appears on more than one instruction type
+    TANH = "tanh"  # WARNING: Appears on more than one instruction type
 
 
 class HalfPrecisionFloatingPointInstructions(Enum):
     """Possible Half Precision Floating-Point Instructions (https://docs.nvidia.com/cuda/parallel-thread-execution/#half-precision-floating-point-instructions)"""
 
-    ADD = "add"
-    SUB = "sub"
-    MUL = "mul"
-    FMA = "fma"
-    NEG = "neg"
-    ABS = "abs"
-    MIN = "min"
-    MAX = "max"
-    TANH = "tanh"
-    EX2 = "ex2"
+    ADD = "add"  # WARNING: Appears on more than one instruction type
+    SUB = "sub"  # WARNING: Appears on more than one instruction type
+    MUL = "mul"  # WARNING: Appears on more than one instruction type
+    FMA = "fma"  # WARNING: Appears on more than one instruction type
+    NEG = "neg"  # WARNING: Appears on more than one instruction type
+    ABS = "abs"  # WARNING: Appears on more than one instruction type
+    MIN = "min"  # WARNING: Appears on more than one instruction type
+    MAX = "max"  # WARNING: Appears on more than one instruction type
+    TANH = "tanh"  # WARNING: Appears on more than one instruction type
+    EX2 = "ex2"  # WARNING: Appears on more than one instruction type
 
 
 class MixedPrecisionFloatingPointInstructions(Enum):
     """Possible Mixed Precision Floating-Point Instructions (https://docs.nvidia.com/cuda/parallel-thread-execution/#mixed-precision-floating-point-instructions)"""
 
-    ADD = "add"
-    SUB = "sub"
-    FMA = "fma"
+    ADD = "add"  # WARNING: Appears on more than one instruction type
+    SUB = "sub"  # WARNING: Appears on more than one instruction type
+    FMA = "fma"  # WARNING: Appears on more than one instruction type
 
 
 class ComparisonAndSelectionInstructions(Enum):
     """Possible Comparison and Selection Instructions (https://docs.nvidia.com/cuda/parallel-thread-execution/#comparison-and-selection-instructions)"""
 
-    SET = "set"
-    SETP = "setp"
+    SET = "set"  # WARNING: Appears on more than one instruction type
+    SETP = "setp"  # WARNING: Appears on more than one instruction type
     SELP = "selp"
     SLCT = "slct"
 
@@ -207,8 +207,8 @@ class ComparisonAndSelectionInstructions(Enum):
 class HalfPrecisionComparisonInstructions(Enum):
     """Possible Half Precision Comparison Instructions (https://docs.nvidia.com/cuda/parallel-thread-execution/#half-precision-comparison-instructions)"""
 
-    SET = "set"
-    SETP = "setp"
+    SET = "set"  # WARNING: Appears on more than one instruction type
+    SETP = "setp"  # WARNING: Appears on more than one instruction type
 
 
 class LogicAndShiftInstructions(Enum):
