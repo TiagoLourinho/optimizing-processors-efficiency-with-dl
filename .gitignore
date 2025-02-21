@@ -1,7 +1,7 @@
 ncu_metrics.txt
 bin/
-benchmarks/
 results/
+*.ptx
 .vscode/
 
 # Byte-compiled / optimized / DLL files
