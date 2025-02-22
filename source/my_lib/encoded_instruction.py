@@ -1,7 +1,7 @@
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
-
 from PTX_ISA_enums import (
     AsynchronousWarpgroupMatrixMultiplyAccumulateInstructions,
     ComparisonAndSelectionInstructions,
@@ -58,10 +58,10 @@ class EncodedInstruction:
     )
     """ The instruction itself (type defined by `instruction_type`) """
 
-    state_space: StateSpace
+    state_space: StateSpace | None
     """ The state (memory) space of the instruction """
 
-    data_type: DataType
+    data_type: DataType | None
     """ The result data type """
 
     number_of_operands: int
@@ -70,18 +70,34 @@ class EncodedInstruction:
     def to_array(self):
         """Transforms the encoded instruction into an array"""
 
-        instruction_type_list = list(InstructionType)
-        instructions_list = list(type(self.instruction_name))
-        state_space_list = list(StateSpace)
-        data_type_list = list(DataType)
-
-        # Use the index of the enums members
         return np.array(
             [
-                instruction_type_list.index(self.instruction_type),
-                instructions_list.index(self.instruction_name),
-                state_space_list.index(self.state_space),
-                data_type_list.index(self.data_type),
+                self.__get_enum_index(InstructionType, self.instruction_type),
+                self.__get_enum_index(
+                    type(self.instruction_name), self.instruction_name
+                ),
+                self.__get_enum_index(StateSpace, self.state_space),
+                self.__get_enum_index(DataType, self.data_type),
                 self.number_of_operands,
             ]
         )
+
+    def __get_enum_index(self, enum: Enum, enum_member: any) -> int:
+        """Returns the index of the member of the enum"""
+
+        try:
+            return list(enum).index(enum_member)
+        except ValueError:
+            return -1
+
+
+if __name__ == "__main__":
+    inst = EncodedInstruction(
+        instruction_type=InstructionType.FLOATING_POINT,
+        instruction_name=FloatingPointInstructions.COS,
+        state_space=None,
+        data_type=DataType.F32,
+        number_of_operands=2,
+    )
+
+    print(inst.to_array())
