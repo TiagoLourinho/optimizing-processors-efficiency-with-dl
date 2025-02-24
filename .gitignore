@@ -1,8 +1,10 @@
+# Manually added
 ncu_metrics.txt
+example.ptx
 bin/
 results/
-*.ptx
 .vscode/
+benchmarks/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
