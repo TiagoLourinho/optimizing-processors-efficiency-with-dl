@@ -1,5 +1,5 @@
-from encoded_instruction import EncodedInstruction
-from PTX_ISA_enums import (
+from .encoded_instruction import EncodedInstruction
+from .PTX_ISA_enums import (
     AsynchronousWarpgroupMatrixMultiplyAccumulateInstructions,
     ComparisonAndSelectionInstructions,
     ControlFlowInstructions,
@@ -28,7 +28,9 @@ from PTX_ISA_enums import (
 class PTXParser:
     """Handles the parsing of a PTX file and instruction encoding"""
 
-    def parse(self, ptx_file: str) -> dict[str : list[EncodedInstruction]]:
+    def parse(
+        self, ptx_file: str, convert_to_vectors: bool = False
+    ) -> dict[str : list[EncodedInstruction]] | dict[str : list[list]]:
         """
         Parses the PTX file and encodes the kernels as a sequence
 
@@ -36,6 +38,8 @@ class PTXParser:
         ----------
         ptx_file: str
             The PTX file to parse
+        convert_to_vectors: bool = False
+            Whether or not to convert the encoded instructions to vectors when returning
 
         Returns
         -------
@@ -51,59 +55,106 @@ class PTXParser:
             lines = ptx.readlines()
 
         # Next part is easier to understand if also looking at a PTX example
+        # But the main ideia is to keep track whether the current line belongs to a kernel
+        # or a function or if its like a declaration that can be discarded
 
-        # Remove unnecessary lines
-        filtered_lines = []
+        current_kernel = None  # Signals whether inside a kernel or not
+        curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and conditional blocks)
+        calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
         for line in lines:
             line = line.strip()
+
+            # Remove comments
+            line = line.split("//")[0].rstrip()
 
             if (
                 # Skip empty lines
                 line == ""
-                # Skip end of function parameters declaration
+                # Skip parameters declaration
+                or line == "("
                 or line == ")"
-                # Skip start of kernel instructions (already signalled by the function name line)
-                or line == "{"
-                # Skip comment lines
-                or line.startswith("//")
+                # Skip PTX initial declarations
+                or line.startswith(".version")
+                or line.startswith(".target")
+                or line.startswith(".address_size")
                 # Skip declarations like:
                 # .reg .pred 	%p<2>;
-                # But don't skip kernel declaration lines like:
-                # .visible .entry _Z12simpleKernelIfEvPT_S1_S1_S1_S1_(
-                or (line.startswith(".") and not line.endswith("("))
+                or (line.startswith(".") and line.endswith(";"))
+                # Skip parameters (but not kernel/func declaration lines)
+                or (
+                    line.startswith(".")
+                    and ".entry" not in line
+                    and ".func" not in line
+                )
                 # Skip labels, like:
                 # $L__BB0_2:
-                or line.startswith("$")
+                or (line.startswith("$") and line.endswith(":"))
             ):
                 continue
 
-            filtered_lines.append(line)
+            # Parsing outside of kernels
+            if current_kernel is None and (".entry" in line or ".func" in line):
 
-        current_kernel = None  # Name of the current kernel being processed
-        for line in filtered_lines:
-
-            if line.endswith("("):
-                # Kernel instructions are going to start being processed
-                # Remove kernel name from line like:
-                # .visible .entry _Z12simpleKernelIfEvPT_S1_S1_S1_S1_(
-
-                current_kernel = line.split()[-1][:-1]
+                # Kernel declaration, grab the kernel name from like:
+                # .visible .entry _Z8cgkernelv()
+                current_kernel = line.split()[-1].replace("(", "").replace(")", "")
                 kernel_sequences[current_kernel] = list()
 
-            elif line == "}":
-                # End of kernel instructions
-
-                current_kernel = None
-
+            # Parsing inside a kernel
             else:
-                assert current_kernel is not None
-                kernel_sequences[current_kernel].append(
-                    self.__parse_instruction_line(line)
+
+                skip_line = False
+                # If the line is just opening/closing with {} just count and skip
+                if line == "{":
+                    curly_count += 1
+                    skip_line = True
+                elif line == "}":
+                    curly_count -= 1
+                    skip_line = True
+                # The start of a function calling is like:
+                # call.uni (retval0),
+                # vprintf,
+                # So process and encode the call instruction but then skip the following lines
+                # as the instruction is split across multiple lines
+                elif line.endswith(",") and not line.startswith(
+                    ControlFlowInstructions.CALL.value
+                ):
+                    calling_a_function = True
+                # The end of a function calling is );
+                elif line == ");":
+                    calling_a_function = False
+                    continue  # Still skip this last line even with `calling_a_function` being False
+
+                # Means that the kernel declaration ended
+                if curly_count == 0 or line == ";":
+                    current_kernel = None
+                    continue
+                # Special skipping flags
+                elif skip_line or calling_a_function:
+                    continue
+
+                ### Proceed to instruction encoding ###
+
+                encoded_instruction = self.__parse_instruction_line(
+                    line,
+                    is_conditional=curly_count
+                    > 1,  # 1 level means kernel body, more than that mean conditional blocks
                 )
+
+                assert (
+                    encoded_instruction.instruction_name is not None
+                ), f"Couldn't parse '{line}' of kernel {current_kernel} in file {ptx_file}."
+
+                if convert_to_vectors:
+                    encoded_instruction = encoded_instruction.to_array()
+
+                kernel_sequences[current_kernel].append(encoded_instruction)
 
         return kernel_sequences
 
-    def __parse_instruction_line(self, line: str) -> EncodedInstruction:
+    def __parse_instruction_line(
+        self, line: str, is_conditional: bool = False
+    ) -> EncodedInstruction:
         """
         Parses the PTX line and converts it to a encoded instruction
 
@@ -111,6 +162,8 @@ class PTXParser:
         ----------
         line: str
             The read PTX line with an instruction
+        is_conditional: bool = False
+            Signals whether or not this line is inside a conditional block
 
         Returns
         -------
@@ -125,9 +178,10 @@ class PTXParser:
 
         # Conditional lines like:
         # @%p1 bra 	$L__BB2_2;
-        # Are not considered in the encoding so remove the @ part
+        # Mark that but remove the @ part for the next parsing part
         if parts[0].startswith("@"):
             parts = parts[1:]
+            is_conditional = True
 
         instruction, operands = parts[0], parts[1:]
 
@@ -275,6 +329,7 @@ class PTXParser:
             state_space=instruction_state_space,
             data_type=instruction_data_type,
             number_of_operands=instruction_number_of_operands,
+            is_conditional=is_conditional,
         )
 
         return encoded_instruction

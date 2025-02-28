@@ -1,8 +1,8 @@
-# Config of the profile cuda tool behavior
 config = {
     ###########################
     ########## Paths ##########
     ###########################
+    "benchmarks_folder": "benchmarks",  # str - The folder where the CUDA benchmarks are located
     "nvcc_path": "/usr/local/cuda-12.6/bin/nvcc",  # str - The path of the NVCC compiler
     "ncu_path": "/usr/local/cuda-12.6/bin/ncu",  # str - The path of the NCU profiler
     "ncu_sections_folder": None,  # str - The path of the folder to search for NCU sections. If None, then the default path is used.
@@ -10,8 +10,6 @@ config = {
     ################################
     ########## GPU config ##########
     ################################
-    "gpu_graphics_clk": None,  # int [MHz] | None - The graphics clock to use. If None, then it is "free".
-    "gpu_memory_clk": None,  # int [MHz] | None - The memory clock to use. If None, then it is "free".
     "gpu_sleep_time": 1,  # int [s] - The amount of time to sleep after changing GPU clocks speeds so the systems stabilizes.
     #################################
     ########## NVML config ##########

@@ -1,62 +1,8 @@
-import json
-import os
-import shutil
 import socket
 from datetime import datetime
-from typing import Any
 
 import cpuinfo
 import psutil
-
-MatplotlibFigure = Any
-""" 
-Placeholder for the matplotlib figure class (not direclty imported because of C++ library incompatibilities)
-
-Check: https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure
-"""
-
-
-def export_data(
-    data: dict,
-    figure: MatplotlibFigure,
-    benchmark_path: str,
-    output_filename: str | None,
-):
-    """Writes the collected data to a JSON file"""
-
-    results_folder = "./results"
-    extension = os.path.splitext(benchmark_path)[1]
-    benchmark_filename = os.path.basename(benchmark_path).removesuffix(extension)
-
-    if output_filename is None:
-        output_filename = benchmark_filename
-
-    benchmark_folder = os.path.join(results_folder, output_filename)
-
-    # Create folders if they don't exist
-    if not os.path.exists(results_folder):
-        os.makedirs(results_folder)
-    if not os.path.exists(benchmark_folder):
-        os.makedirs(benchmark_folder)
-
-    # Keep a copy of the original CUDA file and set default permissions for all users
-    os.chmod(
-        shutil.copy2(
-            benchmark_path,
-            os.path.join(benchmark_folder, f"copy_{output_filename}{extension}"),
-        ),
-        0o666,
-    )
-
-    # Execution plots
-    figure.savefig(os.path.join(benchmark_folder, f"plots_{output_filename}.png"))
-
-    # Results JSON
-    full_path = os.path.join(benchmark_folder, f"results_{output_filename}.json")
-    with open(full_path, "w") as json_file:
-        json.dump(data, json_file, indent=4)
-
-    print(f"Results were saved in {benchmark_folder} folder.")
 
 
 def collect_system_info(gpu_name: str) -> dict:
@@ -90,3 +36,37 @@ def are_there_other_users(running_ncu=False) -> bool:
         max_len += 1
 
     return len(psutil.users()) > max_len
+
+
+def validate_config(config: dict):
+    """Validates the current configuration (not extensively) and raises an error if invalid"""
+
+    get_key_config_dict = lambda required, type: tuple([required, type])
+
+    keys_config = {
+        "benchmarks_folder": get_key_config_dict(required=True, type=str),
+        "nvcc_path": get_key_config_dict(required=True, type=str),
+        "ncu_path": get_key_config_dict(required=True, type=str),
+        "ncu_sections_folder": get_key_config_dict(required=False, type=str),
+        "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
+        "gpu_sleep_time": get_key_config_dict(required=True, type=int),
+        "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
+        "nvml_n_runs": get_key_config_dict(required=True, type=int),
+        "ncu_set": get_key_config_dict(required=True, type=str),
+    }
+
+    if len(keys_config) != len(config):
+        raise ValueError("Config has too many / too few parameters.")
+
+    for key, (required, type) in keys_config.items():
+
+        if key not in config:
+            raise ValueError(f"Missing config key {key}.")
+
+        value = config[key]
+
+        if value is None:
+            if required:
+                raise ValueError(f"Key {key} should be defined.")
+        elif not isinstance(value, type):
+            raise ValueError(f"Key {key} has invalid type.")

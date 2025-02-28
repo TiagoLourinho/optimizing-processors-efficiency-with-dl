@@ -290,8 +290,8 @@ class ControlFlowInstructions(Enum):
 class ParallelSynchronizationAndCommunicationInstructions(Enum):
     """Possible Parallel Synchronization and Communication Instructions (https://docs.nvidia.com/cuda/parallel-thread-execution/#parallel-synchronization-and-communication-instructions)"""
 
-    BAR_CTA = "bar{.cta}"
-    BARRIER_CTA = "barrier{.cta}"
+    BAR_CTA = "bar"
+    BARRIER_CTA = "barrier"
     BAR_WARP_SYNC = "bar.warp.sync"
     BARRIER_CLUSTER = "barrier.cluster"
     MEMBAR = "membar"

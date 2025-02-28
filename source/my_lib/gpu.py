@@ -196,7 +196,7 @@ class GPU:
             1 - NVML supported clock call returns the following memory clocks: [405, 810, 6001, 7001, 8001]
             2 - Setting the memory clock to 8001 and then querying it would return 8000, causing a mismatch
 
-        So, with `sanitize`=True, the function would "sanitize" the clocks ending in 1 and return [405, 810, 6000, 7000, 8000]
+        So, with `sanitize=True`, the function would "sanitize" the clocks ending in 1 and return [405, 810, 6000, 7000, 8000]
         """
 
         supported_clocks = sorted(

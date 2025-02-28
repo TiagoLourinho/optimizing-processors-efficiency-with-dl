@@ -13,9 +13,12 @@
 2. On the project root folder run `conda env create -f conda_env.yml`.
 3. Modify `config.py` to set the profilling behavior.
 4. Activate the enviroment with `conda activate master_thesis_env`.
-4. Now run:
+ 
+### Benchmarks to training data tool
 
-`sudo PATH="$PATH" python3 source/profile_cuda.py <PATH_TO_CUDA_BENCHMARK> <BENCHMARK_ARGS> -o <OUTPUT_FILENAME>`
+To run the tool that converts the benchmarks to the training data (PTX and metrics collected) run:
+
+`sudo PATH="$PATH" python3 source/benchmarks_to_training_data.py`
 
 ## Useful `nvidia-smi` commands
 

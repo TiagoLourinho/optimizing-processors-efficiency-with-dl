@@ -1,12 +1,13 @@
-import argparse
+import json
 import os
-import sys
 from datetime import datetime
 
 from config import config
 from my_lib.benchmark_monitor import BenchmarkMonitor
+from my_lib.compiler import Compiler
 from my_lib.gpu import GPU
-from my_lib.utils import are_there_other_users, collect_system_info, export_data
+from my_lib.PTX_parser import PTXParser
+from my_lib.utils import are_there_other_users, collect_system_info, validate_config
 
 # Set umask to 000 to allow full read, write, and execute for everyone
 # avoiding the normal user not being able to modify the files created
@@ -14,77 +15,14 @@ from my_lib.utils import are_there_other_users, collect_system_info, export_data
 os.umask(0o000)
 
 data: dict = {
-    "invocation_command": None,  # The invocation command
     "config": {},  # The config used to profile
     "system_info": {},  # System information
-    "results": {
-        "did_other_users_login": None,  # Whether or not another user logged in during metrics collection
-        "nvml": {},
-        "ncu": {},
-    },  # The results of the profile (NVML metrics and NCU metrics)
-    "nvml_samples": {},  # The NVML samples collected
+    "did_other_users_login": False,  # Whether or not another user logged in during metrics collection
+    "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/ncu metrics)
 }
 
-
-def collect_cmd_args() -> tuple[argparse.Namespace, list[str]]:
-    """Collects the commnad line arguments"""
-
-    parser = argparse.ArgumentParser(
-        description="Compiles and profiles a CUDA program using NVML and NCU. Requires sudo. Expects a 'config.py' defining the profiling behavior.",
-    )
-
-    ######### Required arguments #########
-
-    parser.add_argument(
-        "cuda_file", type=str, help="The CUDA program to compile and time."
-    )
-
-    ######### Optional arguments #########
-
-    parser.add_argument(
-        "-o",
-        dest="output_filename",
-        type=str,
-        default=None,
-        help="The output file name to use.",
-    )
-
-    return parser.parse_known_args()
-
-
-def validate_config(config: dict):
-    """Validates the current configuration (not extensively) and raises an error if invalid"""
-
-    get_key_config_dict = lambda required, type: tuple([required, type])
-
-    keys_config = {
-        "nvcc_path": get_key_config_dict(required=True, type=str),
-        "ncu_path": get_key_config_dict(required=True, type=str),
-        "ncu_sections_folder": get_key_config_dict(required=False, type=str),
-        "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
-        "gpu_graphics_clk": get_key_config_dict(required=False, type=int),
-        "gpu_memory_clk": get_key_config_dict(required=False, type=int),
-        "gpu_sleep_time": get_key_config_dict(required=True, type=int),
-        "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
-        "nvml_n_runs": get_key_config_dict(required=True, type=int),
-        "ncu_set": get_key_config_dict(required=True, type=str),
-    }
-
-    if len(keys_config) != len(config):
-        raise ValueError("Config has too many / too few parameters.")
-
-    for key, (required, type) in keys_config.items():
-
-        if key not in config:
-            raise ValueError(f"Missing config key {key}.")
-
-        value = config[key]
-
-        if value is None:
-            if required:
-                raise ValueError(f"Key {key} should be defined.")
-        elif not isinstance(value, type):
-            raise ValueError(f"Key {key} has invalid type.")
+PTX_PATH = "bin/ptx"
+EXECUTABLES_PATH = "bin/executables"
 
 
 def main(data: dict, config: dict):
@@ -99,8 +37,6 @@ def main(data: dict, config: dict):
     validate_config(config)
 
     # Collect cmd line arguments
-    args, benchmark_args = collect_cmd_args()
-    data["invocation_command"] = 'sudo PATH="$PATH" python3 ' + " ".join(sys.argv)
     data["config"] = config
 
     print(f"Starting to run the script at {datetime.now()}.")
@@ -108,9 +44,9 @@ def main(data: dict, config: dict):
     # Init the GPU and compile the benchmark
     with GPU(sleep_time=config["gpu_sleep_time"]) as gpu:
         try:
+            compiler = Compiler(benchmarks_folder=config["benchmarks_folder"])
+            ptx_parser = PTXParser()
             benchmark_monitor = BenchmarkMonitor(
-                benchmark=args.cuda_file,
-                benchmark_args=benchmark_args,
                 gpu=gpu,
                 nvcc_path=config["nvcc_path"],
                 nvml_n_runs=config["nvml_n_runs"],
@@ -123,38 +59,65 @@ def main(data: dict, config: dict):
 
             data["system_info"] = collect_system_info(gpu_name=gpu.name)
 
-            # Set the GPU clocks
-            if config["gpu_memory_clk"] is not None:
-                gpu.memory_clk = config["gpu_memory_clk"]
-            if config["gpu_graphics_clk"] is not None:
-                gpu.graphics_clk = config["gpu_graphics_clk"]
+            compiler.compile_and_obtain_ptx()
 
-            (
-                data["results"]["nvml"],
-                data["nvml_samples"],
-                figure,
-                nvml_did_other_users_login,
-            ) = benchmark_monitor.run_nvml()
+            # Convert the PTX to a sequence of vectors
+            get_ptx = {}
+            for ptx_file in os.listdir(PTX_PATH):
+                benchmark_name = ptx_file.replace(".ptx", "")
 
-            data["results"]["ncu"], ncu_did_other_users_login = (
-                benchmark_monitor.run_ncu()
-            )
+                get_ptx[benchmark_name] = ptx_parser.parse(
+                    os.path.join(PTX_PATH, ptx_file), convert_to_vectors=True
+                )
 
-            data["results"]["did_other_users_login"] = (
-                nvml_did_other_users_login or ncu_did_other_users_login
-            )
+            # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
+            for memory_clock in gpu.get_supported_memory_clocks():
+                for graphics_clock in gpu.get_supported_graphics_clocks(
+                    memory_clock=memory_clock
+                ):
+                    for executable in os.listdir(EXECUTABLES_PATH):
 
-            export_data(
-                data=data,
-                figure=figure,
-                benchmark_path=args.cuda_file,
-                output_filename=args.output_filename,
-            )
+                        benchmark_name = executable.replace(".out", "")
+                        executable_path = os.path.join(EXECUTABLES_PATH, executable)
 
-            if data["results"]["did_other_users_login"]:
+                        (
+                            nvml_metrics,
+                            _,
+                            _,
+                            nvml_did_other_users_login,
+                        ) = benchmark_monitor.run_nvml(benchmark_path=executable_path)
+
+                        ncu_metrics, ncu_did_other_users_login = (
+                            benchmark_monitor.run_ncu(benchmark_path=executable_path)
+                        )
+
+                        data["did_other_users_login"] = (
+                            data["did_other_users_login"]
+                            or nvml_did_other_users_login
+                            or ncu_did_other_users_login
+                        )
+
+                        data["training_data"].append(
+                            {
+                                "benchmark_name": benchmark_name,
+                                "memory_frequency": memory_clock,
+                                "graphics_frequency": graphics_clock,
+                                "ptx": get_ptx[benchmark_name],
+                                "nvml_metrics": nvml_metrics,
+                                "ncu_metrics": ncu_metrics,
+                            }
+                        )
+
+            if data["did_other_users_login"]:
                 print(
                     "\nWarning: Other users logged in during execution of the script. Script might need to run again.\n"
                 )
+
+            training_data_file = "training_data.json"
+            with open(training_data_file, "w") as json_file:
+                json.dump(data, json_file, indent=4)
+                print(f"\nExported training data to {training_data_file}.")
+
         except KeyboardInterrupt:
             print("\nInterrupting...")
             return

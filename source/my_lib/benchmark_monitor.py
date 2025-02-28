@@ -4,12 +4,20 @@ import sys
 import threading
 import time
 from collections import defaultdict
+from typing import Any
 
 import numpy as np
 from tqdm import tqdm
 
 from .gpu import GPU, GPUQueries
-from .utils import MatplotlibFigure, are_there_other_users
+from .utils import are_there_other_users
+
+MatplotlibFigure = Any
+""" 
+Placeholder for the matplotlib figure class (not direclty imported because of C++ library incompatibilities)
+
+Check: https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure
+"""
 
 RUN_SAMPLES = dict[str, list[float]]
 """ 
@@ -38,17 +46,12 @@ class BenchmarkMonitor:
         GPUQueries.POWER,
         GPUQueries.GPU_UTILIZATION,
     ]
-    """ The metrics to collect from the GPU """
-
-    bin_folder = "./bin"
-    """ The name of the bin folder """
+    """ The NVML metrics to collect from the GPU """
 
     ######################################## Dunder methods ########################################
 
     def __init__(
         self,
-        benchmark: str,
-        benchmark_args: list[str],
         gpu: GPU,
         nvcc_path: str,
         nvml_n_runs: str,
@@ -61,16 +64,6 @@ class BenchmarkMonitor:
 
         self.__gpu = gpu
         """ The GPU running the benchmark """
-
-        self.__benchmark = (
-            self.__compile(cuda_file=benchmark, nvcc_path=nvcc_path)
-            if os.path.splitext(benchmark)[1] != ""
-            else benchmark  # If the benchmark doesn't have an extension like ".cu" or ".cpp" it means it is already compiled
-        )
-        """ The path of the CUDA binary to monitor """
-
-        self.__benchmark_args = benchmark_args
-        """ The arguments of the benchmark being profilled """
 
         #################### NVML config ####################
 
@@ -100,10 +93,15 @@ class BenchmarkMonitor:
     ################################### Public methods ####################################
 
     def run_nvml(
-        self,
+        self, benchmark_path: str
     ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, MatplotlibFigure, bool]:
         """
         Runs the benchmark and monitors it using nvml
+
+        Parameters
+        ----------
+        benchmark_path: str
+            The benchmark to run
 
         Returns
         -------
@@ -174,11 +172,12 @@ class BenchmarkMonitor:
 
                 # Start sampling and run the application
                 sample_event.set()
-                list(
-                    self.__run_command_generator(
-                        args=[self.__benchmark, *self.__benchmark_args]
-                    )
-                )  # Use list to fully run the generator
+                subprocess.run(
+                    [f"./{benchmark_path}"],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
                 sample_event.clear()
 
                 # Wait for the other thread to append the samples and then collect them
@@ -206,9 +205,14 @@ class BenchmarkMonitor:
             sampler_thread.join()
             users_thread.join()
 
-    def run_ncu(self) -> tuple[dict, bool]:
+    def run_ncu(self, benchmark_path: str) -> tuple[dict, bool]:
         """
         Runs the benchmark and performs the benchmork using ncu
+
+        Parameters
+        ----------
+        benchmark_path: str
+            The benchmark to run
 
         Returns
         -------
@@ -219,10 +223,11 @@ class BenchmarkMonitor:
 
         print("Collecting kernel metrics with NCU...")
 
-        report_path = os.path.join(
-            self.bin_folder,
-            os.path.basename(self.__benchmark).replace(".out", "") + ".ncu-rep",
-        )
+        benchmark_filename = os.path.basename(benchmark_path)
+        report_filename = os.path.splitext(benchmark_filename)[0] + ".ncu-rep"
+        report_dir = os.path.join("bin", "reports")
+        report_path = os.path.join(report_dir, report_filename)
+        os.makedirs(report_dir, exist_ok=True)
 
         try:
 
@@ -272,12 +277,15 @@ class BenchmarkMonitor:
             command += [
                 "--set",
                 self.__ncu_set,
-                self.__benchmark,
-                *self.__benchmark_args,
+                benchmark_path,
             ]
 
-            # Use list to fully run the generator
-            list(self.__run_command_generator(args=command))
+            subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
             terminate_event.set()  # NCU already stopped collecting the metrics
 
@@ -294,54 +302,6 @@ class BenchmarkMonitor:
             terminate_event.set()
 
             users_thread.join()
-
-    ################################### Utils ####################################
-
-    def __compile(self, cuda_file: str, nvcc_path: str) -> str:
-        """Compiles the CUDA program"""
-
-        print("Compiling benchmark...")
-
-        if not os.path.exists(self.bin_folder):
-            os.makedirs(self.bin_folder)
-
-        output_path = os.path.join(
-            self.bin_folder, os.path.basename(cuda_file).replace(".cu", ".out")
-        )
-
-        nvcc_command = [
-            nvcc_path,
-            cuda_file,
-            "-o",
-            output_path,
-        ]
-
-        # Use list to fully run the generator command
-        list(self.__run_command_generator(args=nvcc_command))
-
-        return output_path
-
-    def __run_command_generator(self, args: list[str]):
-        """Runs a command defined by `args` and acts as a generator for stdout"""
-
-        process = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-
-        while True:
-            output = process.stdout.readline().strip()
-            return_code = process.poll()
-
-            # process.poll returns None while the process is still running
-            if return_code is not None:
-                break
-            elif output:
-                yield output
-
-        if return_code != 0:
-            raise Exception(
-                f"There was an error running '{' '.join(args)}':\n\n{process.stderr.read().strip()}"
-            )
 
     ################################### Data post processing ####################################
 
@@ -458,10 +418,6 @@ class BenchmarkMonitor:
 
         fig.tight_layout()
         fig.subplots_adjust(top=0.925)  # Spacing for title
-        fig.suptitle(
-            f"'{os.path.basename(self.__benchmark).replace('.out','.cu')}' execution plots",
-            fontsize=16,
-        )
 
         return fig
 
