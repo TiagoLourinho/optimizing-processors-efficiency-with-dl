@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+import time
 
 from config import config
 from my_lib.benchmark_monitor import BenchmarkMonitor
@@ -107,6 +108,8 @@ def main(data: dict, config: dict):
                                 "ncu_metrics": ncu_metrics,
                             }
                         )
+
+                        time.sleep(gpu.sleep_time)
 
             if data["did_other_users_login"]:
                 print(
