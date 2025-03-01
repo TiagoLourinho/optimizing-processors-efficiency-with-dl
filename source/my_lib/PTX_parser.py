@@ -59,7 +59,7 @@ class PTXParser:
         # or a function or if its like a declaration that can be discarded
 
         current_kernel = None  # Signals whether inside a kernel or not
-        curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and conditional blocks)
+        curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and grouped blocks)
         calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
         for line in lines:
             line = line.strip()
@@ -135,11 +135,7 @@ class PTXParser:
 
                 ### Proceed to instruction encoding ###
 
-                encoded_instruction = self.__parse_instruction_line(
-                    line,
-                    is_conditional=curly_count
-                    > 1,  # 1 level means kernel body, more than that mean conditional blocks
-                )
+                encoded_instruction = self.__parse_instruction_line(line)
 
                 assert (
                     encoded_instruction.instruction_name is not None
