@@ -19,6 +19,7 @@ data: dict = {
     "config": {},  # The config used to profile
     "system_info": {},  # System information
     "did_other_users_login": False,  # Whether or not another user logged in during metrics collection
+    "ptxs": {},  # Contains the PTX of every considered benchmark
     "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/ncu metrics)
 }
 
@@ -63,11 +64,10 @@ def main(data: dict, config: dict):
             compiler.compile_and_obtain_ptx()
 
             # Convert the PTX to a sequence of vectors
-            get_ptx = {}
             for ptx_file in os.listdir(PTX_PATH):
                 benchmark_name = ptx_file.replace(".ptx", "")
 
-                get_ptx[benchmark_name] = ptx_parser.parse(
+                data["ptxs"][benchmark_name] = ptx_parser.parse(
                     os.path.join(PTX_PATH, ptx_file), convert_to_vectors=True
                 )
 
@@ -103,7 +103,6 @@ def main(data: dict, config: dict):
                                 "benchmark_name": benchmark_name,
                                 "memory_frequency": memory_clock,
                                 "graphics_frequency": graphics_clock,
-                                "ptx": get_ptx[benchmark_name],
                                 "nvml_metrics": nvml_metrics,
                                 "ncu_metrics": ncu_metrics,
                             }
