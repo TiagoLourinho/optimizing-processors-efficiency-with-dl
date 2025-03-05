@@ -55,14 +55,12 @@ class PTXParser:
             lines = ptx.readlines()
 
         # Next part is easier to understand if also looking at a PTX example
-        # But the main ideia is to keep track whether the current line belongs to a kernel
-        # or a function or if its like a declaration that can be discarded
 
-        current_kernel = None  # Signals whether inside a kernel or not
-        curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and grouped blocks)
-        calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
-        for line in lines:
-            line = line.strip()
+        # Initial preprocessing
+        filtered_lines = []
+        i = 0
+        while i < len(lines):  # lines list will be changed during the loop
+            line = lines[i].strip()
 
             # Remove comments
             line = line.split("//")[0].rstrip()
@@ -90,7 +88,35 @@ class PTXParser:
                 # $L__BB0_2:
                 or (line.startswith("$") and line.endswith(":"))
             ):
+                i += 1
                 continue
+
+            # There are some "problematic" lines like:
+            # { .reg .b64 %tmp;
+            # or
+            # cvta.shared.u64 	%rd233, %tmp; }
+            # So in these cases separate the {} from the rest of the instruction
+            # to avoid later parsing errors and reinsert them in the lines list
+            # so they are preprocessed alone in a following iteration
+            if line != "{" and line.startswith("{"):
+                lines.insert(i + 1, "{")
+                lines.insert(i + 2, line[1:].strip())
+            elif line != "}" and line.endswith("}"):
+                lines.insert(i + 1, line[:-1].strip())
+                lines.insert(i + 2, "}")
+            else:
+                filtered_lines.append(line)
+
+            i += 1
+
+        # The main ideia for the next parsing part
+        # is to keep track whether the current line belongs to a kernel
+        # or a function or if its like a declaration that can be discarded
+
+        current_kernel = None  # Signals whether inside a kernel or not
+        curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and grouped blocks)
+        calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
+        for line in filtered_lines:
 
             # Parsing outside of kernels
             if current_kernel is None and (".entry" in line or ".func" in line):
