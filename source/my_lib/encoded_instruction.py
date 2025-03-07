@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, asdict
 from enum import Enum
 
 from .PTX_ISA_enums import (
@@ -30,6 +31,17 @@ from .PTX_ISA_enums import (
 @dataclass
 class EncodedInstruction:
     """Represents an encoded instruction"""
+
+    kernel_name: str
+    """ The kernel this instruction belongs to """
+
+    raw_instruction: str
+    """ The raw instruction line """
+
+    instruction_index: int
+    """ The index of this instruction on the kernel definition """
+
+    #################### Information encoded on the vector ####################
 
     instruction_type: InstructionType
     """ The type of the instruction """
@@ -63,11 +75,16 @@ class EncodedInstruction:
     data_type: DataType | None
     """ The result data type """
 
-    number_of_operands: int
-    """ Number of register operands used by the instruction (input + destination) """
+    operands: list[str]
+    """ Operands of the instruction (first is output, the rest is input) """
 
     is_conditional: bool
     """ Whether or not this encoded instruction is inside a conditional block """
+
+    def __str__(self):
+        data_dict = asdict(self)
+        data_dict["encoded vector"] = self.to_array()
+        return json.dumps(data_dict, indent=4, default=str)
 
     def to_array(self):
         """Transforms the encoded instruction into an array"""
@@ -77,7 +94,7 @@ class EncodedInstruction:
             self.__get_enum_index(type(self.instruction_name), self.instruction_name),
             self.__get_enum_index(StateSpace, self.state_space),
             self.__get_enum_index(DataType, self.data_type),
-            self.number_of_operands,
+            len(self.operands),
             1 if self.is_conditional else 0,
         ]
 
@@ -88,15 +105,3 @@ class EncodedInstruction:
             return list(enum).index(enum_member)
         except ValueError:
             return -1
-
-
-if __name__ == "__main__":
-    inst = EncodedInstruction(
-        instruction_type=InstructionType.FLOATING_POINT,
-        instruction_name=FloatingPointInstructions.COS,
-        state_space=None,
-        data_type=DataType.F32,
-        number_of_operands=2,
-    )
-
-    print(inst.to_array())

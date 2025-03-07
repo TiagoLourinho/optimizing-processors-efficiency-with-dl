@@ -114,6 +114,9 @@ class PTXParser:
         # or a function or if its like a declaration that can be discarded
 
         current_kernel = None  # Signals whether inside a kernel or not
+        instruction_index = (
+            0  # Counts the index of the current instruction being parsed
+        )
         curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and grouped blocks)
         calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
         for line in filtered_lines:
@@ -154,6 +157,7 @@ class PTXParser:
                 # Means that the kernel declaration ended
                 if curly_count == 0 or line == ";":
                     current_kernel = None
+                    instruction_index = 0  # Reset counter for next kernel
                     continue
                 # Special skipping flags
                 elif skip_line or calling_a_function:
@@ -161,7 +165,13 @@ class PTXParser:
 
                 ### Proceed to instruction encoding ###
 
-                encoded_instruction = self.__parse_instruction_line(line)
+                encoded_instruction = self.__parse_instruction_line(
+                    line,
+                    kernel_name=current_kernel,
+                    instruction_index=instruction_index,
+                )
+
+                instruction_index += 1  # For the next one
 
                 assert (
                     encoded_instruction.instruction_name is not None
@@ -175,7 +185,11 @@ class PTXParser:
         return kernel_sequences
 
     def __parse_instruction_line(
-        self, line: str, is_conditional: bool = False
+        self,
+        line: str,
+        kernel_name: str,
+        instruction_index: int,
+        is_conditional: bool = False,
     ) -> EncodedInstruction:
         """
         Parses the PTX line and converts it to a encoded instruction
@@ -184,6 +198,10 @@ class PTXParser:
         ----------
         line: str
             The read PTX line with an instruction
+        kernel_name: str
+            The kernel this instruction belongs to
+        instruction_index: int
+            The index of the instruction on the kernel definition
         is_conditional: bool = False
             Signals whether or not this line is inside a conditional block
 
@@ -341,16 +359,21 @@ class PTXParser:
                         instruction_type = current_instruction_type
                         instruction_name = current_instruction_name
 
-        ############### Search for the number of operands ###############
-
-        instruction_number_of_operands = len(operands)
-
         encoded_instruction = EncodedInstruction(
+            kernel_name=kernel_name,
+            raw_instruction=line,
+            instruction_index=instruction_index,
             instruction_type=instruction_type,
             instruction_name=instruction_name,
             state_space=instruction_state_space,
             data_type=instruction_data_type,
-            number_of_operands=instruction_number_of_operands,
+            # Clean: %rd10, %rd233, 16;
+            # Remove labels (not operands): @%p1 bra 	$L__BB0_7;
+            operands=[
+                operand.replace(",", "").replace(";", "")
+                for operand in operands
+                if "$" not in operand
+            ],
             is_conditional=is_conditional,
         )
 
