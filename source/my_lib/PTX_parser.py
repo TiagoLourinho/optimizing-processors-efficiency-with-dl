@@ -22,6 +22,7 @@ from .PTX_ISA_enums import (
     TextureInstructions,
     VideoInstructions,
     WarpLevelMatrixMultiplyAccumulateInstructions,
+    DependencyType,
 )
 
 
@@ -117,6 +118,10 @@ class PTXParser:
         instruction_index = (
             0  # Counts the index of the current instruction being parsed
         )
+        last_written = (
+            {}
+        )  # Keeps track of the instruction that last wrote to a register to check for dependencies
+
         curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and grouped blocks)
         calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
         for line in filtered_lines:
@@ -154,10 +159,11 @@ class PTXParser:
                     calling_a_function = False
                     continue  # Still skip this last line even with `calling_a_function` being False
 
-                # Means that the kernel declaration ended
+                # Means that the kernel declaration ended (reset vars for next kernel)
                 if curly_count == 0 or line == ";":
                     current_kernel = None
-                    instruction_index = 0  # Reset counter for next kernel
+                    instruction_index = 0
+                    last_written = {}
                     continue
                 # Special skipping flags
                 elif skip_line or calling_a_function:
@@ -169,7 +175,16 @@ class PTXParser:
                     line,
                     kernel_name=current_kernel,
                     instruction_index=instruction_index,
+                    last_written=last_written,
                 )
+
+                # Update last written to check for dependencies later
+                # Contrary to what is done in __parse_instruction_line, here it is not necessary to pay special attention
+                # to memory addresses, as in:
+                # st.shared.u64 [%r33+8], %rd9;
+                # This is because the register itself is not being written, and keeping track of the memory addresses themselves is out of scope
+                if len(encoded_instruction.operands) > 0:
+                    last_written[encoded_instruction.operands[0]] = encoded_instruction
 
                 instruction_index += 1  # For the next one
 
@@ -189,6 +204,7 @@ class PTXParser:
         line: str,
         kernel_name: str,
         instruction_index: int,
+        last_written: dict[str:EncodedInstruction],
         is_conditional: bool = False,
     ) -> EncodedInstruction:
         """
@@ -202,6 +218,8 @@ class PTXParser:
             The kernel this instruction belongs to
         instruction_index: int
             The index of the instruction on the kernel definition
+        last_written: dict[str:EncodedInstruction]
+            Dictionary that contains for each register, the encoded instruction that last wrote to it
         is_conditional: bool = False
             Signals whether or not this line is inside a conditional block
 
@@ -359,6 +377,44 @@ class PTXParser:
                         instruction_type = current_instruction_type
                         instruction_name = current_instruction_name
 
+        ############### Search for closest dependencies ###############
+
+        # Clean: %rd10, %rd233, 16;
+        # Remove labels (not operands): @%p1 bra 	$L__BB0_7;
+        operands = [
+            operand.replace(",", "").replace(";", "")
+            for operand in operands
+            if "$" not in operand
+        ]
+
+        # Check when the operands where last written:
+        # If the previous instruction wrote to one of the registers this instruction reads,
+        # then the offset is -1, so look for the max starting at -inf (no dependecy)
+        max_offset = float("-inf")
+        dependency_type = None
+        for operand in operands[1:]:
+
+            # If its a memory address, extract the register/param, examples:
+            # [%r33+56] or [_Z14shared_latencyPPyS_iiS_iiii_param_3]
+            # As we want to check the last time that register was written
+            if operand.startswith("[") and operand.endswith("]"):
+                operand = operand[1 : operand.find("+")]
+
+            instruction_that_wrote: EncodedInstruction = last_written.get(operand)
+            if instruction_that_wrote is not None:
+                neg_offset = (
+                    instruction_that_wrote.instruction_index - instruction_index
+                )
+
+                if neg_offset > max_offset:
+                    max_offset = neg_offset
+                    dependency_type = (
+                        DependencyType.MEMORY
+                        if instruction_that_wrote.instruction_type
+                        == InstructionType.DATA_MOVEMENT_AND_CONVERSION
+                        else DependencyType.COMPUTATION
+                    )
+
         encoded_instruction = EncodedInstruction(
             kernel_name=kernel_name,
             raw_instruction=line,
@@ -367,13 +423,9 @@ class PTXParser:
             instruction_name=instruction_name,
             state_space=instruction_state_space,
             data_type=instruction_data_type,
-            # Clean: %rd10, %rd233, 16;
-            # Remove labels (not operands): @%p1 bra 	$L__BB0_7;
-            operands=[
-                operand.replace(",", "").replace(";", "")
-                for operand in operands
-                if "$" not in operand
-            ],
+            operands=operands,
+            closest_dependency=max_offset,
+            dependecy_type=dependency_type,
             is_conditional=is_conditional,
         )
 

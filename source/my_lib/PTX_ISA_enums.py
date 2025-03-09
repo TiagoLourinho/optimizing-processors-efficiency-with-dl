@@ -1,6 +1,13 @@
 from enum import Enum, auto
 
 
+class DependencyType(Enum):
+    """Defines the types of dependecies (happen when an instruction writes to a register that is going to be read after, RAW)"""
+
+    MEMORY = auto()
+    COMPUTATION = auto()
+
+
 class DataType(Enum):
     """Fundamental data types (https://docs.nvidia.com/cuda/parallel-thread-execution/#fundamental-types-fundamental-type-specifiers)"""
 

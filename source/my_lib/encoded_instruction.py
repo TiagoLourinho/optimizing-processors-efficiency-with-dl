@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 
 from .PTX_ISA_enums import (
@@ -8,6 +8,7 @@ from .PTX_ISA_enums import (
     ControlFlowInstructions,
     DataMovementAndConversionInstructions,
     DataType,
+    DependencyType,
     ExtendedPrecisionIntegerArithmeticInstructions,
     FloatingPointInstructions,
     HalfPrecisionComparisonInstructions,
@@ -78,6 +79,15 @@ class EncodedInstruction:
     operands: list[str]
     """ Operands of the instruction (first is output, the rest is input) """
 
+    closest_dependency: int
+    """ 
+    Identifies the offset to the closest instruction that wrote on a register that this instructin reads 
+    (-1 for the previous instruction, -2 for two before, etc, -inf for no dependencies) 
+    """
+
+    dependecy_type: DependencyType | None
+    """ Identifies the type of dependecy, in case it exists """
+
     is_conditional: bool
     """ Whether or not this encoded instruction is inside a conditional block """
 
@@ -95,6 +105,8 @@ class EncodedInstruction:
             self.__get_enum_index(StateSpace, self.state_space),
             self.__get_enum_index(DataType, self.data_type),
             len(self.operands),
+            self.closest_dependency,
+            self.__get_enum_index(DependencyType, self.dependecy_type),
             1 if self.is_conditional else 0,
         ]
 
