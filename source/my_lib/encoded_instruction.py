@@ -76,8 +76,11 @@ class EncodedInstruction:
     data_type: DataType | None
     """ The result data type """
 
-    operands: list[str]
-    """ Operands of the instruction (first is output, the rest is input) """
+    written_operands: list[str]
+    """ Ouputs operands of the instruction (that are written, usually just 1) """
+
+    read_operands: list[str]
+    """ Inputs operands of the instruction (that are read) """
 
     closest_dependency: int
     """ 
@@ -104,7 +107,7 @@ class EncodedInstruction:
             self.__get_enum_index(type(self.instruction_name), self.instruction_name),
             self.__get_enum_index(StateSpace, self.state_space),
             self.__get_enum_index(DataType, self.data_type),
-            len(self.operands),
+            len(self.written_operands) + len(self.read_operands),
             self.closest_dependency,
             self.__get_enum_index(DependencyType, self.dependecy_type),
             1 if self.is_conditional else 0,

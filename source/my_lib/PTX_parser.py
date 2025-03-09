@@ -183,8 +183,8 @@ class PTXParser:
                 # to memory addresses, as in:
                 # st.shared.u64 [%r33+8], %rd9;
                 # This is because the register itself is not being written, and keeping track of the memory addresses themselves is out of scope
-                if len(encoded_instruction.operands) > 0:
-                    last_written[encoded_instruction.operands[0]] = encoded_instruction
+                for operand in encoded_instruction.written_operands:
+                    last_written[operand] = encoded_instruction
 
                 instruction_index += 1  # For the next one
 
@@ -237,7 +237,9 @@ class PTXParser:
         # Conditional lines like:
         # @%p1 bra 	$L__BB2_2;
         # Mark that but remove the @ part for the next parsing part
+        conditional_operand = None
         if parts[0].startswith("@"):
+            conditional_operand = parts[0][1:]  # Extract the register
             parts = parts[1:]
             is_conditional = True
 
@@ -387,12 +389,25 @@ class PTXParser:
             if "$" not in operand
         ]
 
+        if len(operands) >= 2:
+            # Common instructions only produce 1 output but it is made to support more in case it is needed
+            written_operands = [operands[0]]
+            read_operands = operands[1:]
+        else:
+            written_operands = []
+            read_operands = []
+
+        # On conditional instructions like:
+        # @%p1 bra 	$L__BB0_7;
+        if conditional_operand is not None:
+            read_operands.append(conditional_operand)
+
         # Check when the operands where last written:
         # If the previous instruction wrote to one of the registers this instruction reads,
         # then the offset is -1, so look for the max starting at -inf (no dependecy)
         max_offset = float("-inf")
         dependency_type = None
-        for operand in operands[1:]:
+        for operand in read_operands:
 
             # If its a memory address, extract the register/param, examples:
             # [%r33+56] or [_Z14shared_latencyPPyS_iiS_iiii_param_3]
@@ -423,7 +438,8 @@ class PTXParser:
             instruction_name=instruction_name,
             state_space=instruction_state_space,
             data_type=instruction_data_type,
-            operands=operands,
+            written_operands=written_operands,
+            read_operands=read_operands,
             closest_dependency=max_offset,
             dependecy_type=dependency_type,
             is_conditional=is_conditional,
