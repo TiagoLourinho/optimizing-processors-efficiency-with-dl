@@ -94,6 +94,12 @@ class EncodedInstruction:
     is_conditional: bool
     """ Whether or not this encoded instruction is inside a conditional block """
 
+    branching_label: list[str] | None
+    """ The branching label this instruction branches to (or None if a normal instruction) """
+
+    branching_offset: int
+    """ This attribute represents the branching offset in instructions (0 if it is a normal instruction that doesn't branch) """
+
     def __str__(self):
         data_dict = asdict(self)
         data_dict["encoded vector"] = self.to_array()
@@ -111,6 +117,7 @@ class EncodedInstruction:
             self.closest_dependency,
             self.__get_enum_index(DependencyType, self.dependecy_type),
             1 if self.is_conditional else 0,
+            self.branching_offset,
         ]
 
     def __get_enum_index(self, enum: Enum, enum_member: any) -> int:

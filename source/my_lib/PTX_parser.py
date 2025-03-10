@@ -85,9 +85,6 @@ class PTXParser:
                     and ".entry" not in line
                     and ".func" not in line
                 )
-                # Skip labels, like:
-                # $L__BB0_2:
-                or (line.startswith("$") and line.endswith(":"))
             ):
                 i += 1
                 continue
@@ -118,16 +115,27 @@ class PTXParser:
         instruction_index = (
             0  # Counts the index of the current instruction being parsed
         )
-        last_written = (
+        last_written: dict[str:EncodedInstruction] = (
             {}
         )  # Keeps track of the instruction that last wrote to a register to check for dependencies
+        branch_labels: dict[str:int] = (
+            {}
+        )  # Keeps track of the branch labels and the corresponding jumping instruction index
 
         curly_count = 0  # Counts how many {} blocks were opened (used for kernel declaration and grouped blocks)
         calling_a_function = False  # Signals when some PTX code is calling another function so the parameters lines can be skipped
         for line in filtered_lines:
 
+            # Store labels lines for later usage, like:
+            # $L__BB0_2:
+            if line.startswith("$") and line.endswith(":"):
+                label = line[:-1]
+                branch_labels[label] = (
+                    instruction_index  # This label will point to the next used instruction index
+                )
+
             # Parsing outside of kernels
-            if current_kernel is None and (".entry" in line or ".func" in line):
+            elif current_kernel is None and (".entry" in line or ".func" in line):
 
                 # Kernel declaration, grab the kernel name from like:
                 # .visible .entry _Z8cgkernelv()
@@ -161,9 +169,17 @@ class PTXParser:
 
                 # Means that the kernel declaration ended (reset vars for next kernel)
                 if curly_count == 0 or line == ";":
+
+                    self.__update_kernel_branching_instructions(
+                        kernel_encoded_instructions=kernel_sequences[current_kernel],
+                        branch_labels=branch_labels,
+                    )
+
                     current_kernel = None
                     instruction_index = 0
                     last_written = {}
+                    branch_labels = {}
+
                     continue
                 # Special skipping flags
                 elif skip_line or calling_a_function:
@@ -192,12 +208,21 @@ class PTXParser:
                     encoded_instruction.instruction_name is not None
                 ), f"Couldn't parse '{line}' of kernel {current_kernel} in file {ptx_file}."
 
-                if convert_to_vectors:
-                    encoded_instruction = encoded_instruction.to_array()
-
                 kernel_sequences[current_kernel].append(encoded_instruction)
 
-        return kernel_sequences
+        if convert_to_vectors:
+
+            converted_kernel_sequences = {}
+            for kernel_name, encoded_instructions_list in kernel_sequences.items():
+                converted_kernel_sequences[kernel_name] = []
+                for encoded_instruction in encoded_instructions_list:
+                    converted_kernel_sequences[kernel_name].append(
+                        encoded_instruction.to_array()
+                    )
+
+            return converted_kernel_sequences
+        else:
+            return kernel_sequences
 
     def __parse_instruction_line(
         self,
@@ -383,11 +408,19 @@ class PTXParser:
 
         # Clean: %rd10, %rd233, 16;
         # Remove labels (not operands): @%p1 bra 	$L__BB0_7;
-        operands = [
-            operand.replace(",", "").replace(";", "")
-            for operand in operands
-            if "$" not in operand
-        ]
+        branching_label = None
+        filtered_operands = []
+        for operand in operands:
+            clean_operand = operand.replace(",", "").replace(";", "")
+            if (
+                instruction_type == InstructionType.CONTROL_FLOW
+                and "$" in clean_operand
+            ):
+                assert branching_label is None  # Only 1 should appear
+                branching_label = clean_operand
+            else:
+                filtered_operands.append(clean_operand)
+        operands = filtered_operands
 
         if len(operands) >= 2:
             # Common instructions only produce 1 output but it is made to support more in case it is needed
@@ -443,9 +476,38 @@ class PTXParser:
             closest_dependency=max_offset,
             dependecy_type=dependency_type,
             is_conditional=is_conditional,
+            branching_label=branching_label,
+            branching_offset=0,  # Default value, updated later in __update_kernel_branching_instructions
         )
 
         return encoded_instruction
+
+    def __update_kernel_branching_instructions(
+        self,
+        kernel_encoded_instructions: list[EncodedInstruction],
+        branch_labels: dict[str, int],
+    ):
+        """
+        The branch labels are only fully known at the end of the kernel parsing, so in the end iterate over the kernel instructions
+        to see which branching instructions have to be updated (changed inplace)
+
+        Parameters
+        ----------
+        kernel_encoded_instructions: list[EncodedInstruction]
+            The instructions to be updated, changed inplace
+        branch_labels: dict[str, int]
+            The dictionary to get the new branching offset
+        """
+
+        for instruction in kernel_encoded_instructions:
+            if (
+                instruction.instruction_type == InstructionType.CONTROL_FLOW
+                and instruction.branching_label is not None
+            ):
+                instruction.branching_offset = (
+                    branch_labels[instruction.branching_label]
+                    - instruction.instruction_index
+                )
 
 
 if __name__ == "__main__":
