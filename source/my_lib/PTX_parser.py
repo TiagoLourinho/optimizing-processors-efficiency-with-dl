@@ -467,6 +467,7 @@ class PTXParser:
             kernel_name=kernel_name,
             raw_instruction=line,
             instruction_index=instruction_index,
+            branching_label=branching_label,
             instruction_type=instruction_type,
             instruction_name=instruction_name,
             state_space=instruction_state_space,
@@ -476,7 +477,6 @@ class PTXParser:
             closest_dependency=max_offset,
             dependecy_type=dependency_type,
             is_conditional=is_conditional,
-            branching_label=branching_label,
             branching_offset=0,  # Default value, updated later in __update_kernel_branching_instructions
         )
 

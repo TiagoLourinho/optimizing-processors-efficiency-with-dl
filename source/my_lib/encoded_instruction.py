@@ -42,6 +42,9 @@ class EncodedInstruction:
     instruction_index: int
     """ The index of this instruction on the kernel definition """
 
+    branching_label: list[str] | None
+    """ The branching label this instruction branches to (or None if a normal instruction) """
+
     #################### Information encoded on the vector ####################
 
     instruction_type: InstructionType
@@ -94,9 +97,6 @@ class EncodedInstruction:
     is_conditional: bool
     """ Whether or not this encoded instruction is inside a conditional block """
 
-    branching_label: list[str] | None
-    """ The branching label this instruction branches to (or None if a normal instruction) """
-
     branching_offset: int
     """ This attribute represents the branching offset in instructions (0 if it is a normal instruction that doesn't branch) """
 
@@ -113,7 +113,8 @@ class EncodedInstruction:
             self.__get_enum_index(type(self.instruction_name), self.instruction_name),
             self.__get_enum_index(StateSpace, self.state_space),
             self.__get_enum_index(DataType, self.data_type),
-            len(self.written_operands) + len(self.read_operands),
+            len(self.written_operands),
+            len(self.read_operands),
             self.closest_dependency,
             self.__get_enum_index(DependencyType, self.dependecy_type),
             1 if self.is_conditional else 0,
