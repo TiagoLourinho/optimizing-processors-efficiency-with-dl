@@ -426,6 +426,10 @@ class PTXParser:
             # Common instructions only produce 1 output but it is made to support more in case it is needed
             written_operands = [operands[0]]
             read_operands = operands[1:]
+        elif len(operands) == 1:
+            # If the instruction only has 1 operand then it must be read, not written, like: barrier.sync 	0;
+            written_operands = []
+            read_operands = [operands[0]]
         else:
             written_operands = []
             read_operands = []
@@ -434,6 +438,14 @@ class PTXParser:
         # @%p1 bra 	$L__BB0_7;
         if conditional_operand is not None:
             read_operands.append(conditional_operand)
+
+        # Take care of store for example:
+        # st.shared.u32 	[%r3], %r36;
+        # [%r3] will be on the written operands but %r3 still counts as a "read operand"
+        # given its value is needed to perform the store, so add it to the list
+        for operand in written_operands:
+            if operand.startswith("[") and operand.endswith("]"):
+                read_operands.append(operand[1 : operand.find("+")])
 
         # Check when the operands where last written:
         # If the previous instruction wrote to one of the registers this instruction reads,
