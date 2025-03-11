@@ -1,28 +1,12 @@
-from .encoded_instruction import EncodedInstruction
+from copy import deepcopy
+
+from .encoded_instruction import INSTRUCTION_ENUM_MAP, EncodedInstruction
 from .PTX_ISA_enums import (
-    AsynchronousWarpgroupMatrixMultiplyAccumulateInstructions,
-    ComparisonAndSelectionInstructions,
     ControlFlowInstructions,
-    DataMovementAndConversionInstructions,
     DataType,
-    ExtendedPrecisionIntegerArithmeticInstructions,
-    FloatingPointInstructions,
-    HalfPrecisionComparisonInstructions,
-    HalfPrecisionFloatingPointInstructions,
-    InstructionType,
-    IntegerArithmeticInstructions,
-    LogicAndShiftInstructions,
-    MiscellaneousInstructions,
-    MixedPrecisionFloatingPointInstructions,
-    ParallelSynchronizationAndCommunicationInstructions,
-    StackManipulationInstructions,
-    StateSpace,
-    SurfaceInstructions,
-    TensorCore5thGenFamilyInstructions,
-    TextureInstructions,
-    VideoInstructions,
-    WarpLevelMatrixMultiplyAccumulateInstructions,
     DependencyType,
+    InstructionType,
+    StateSpace,
 )
 
 
@@ -279,7 +263,7 @@ class PTXParser:
             DataType.F64,
         }
 
-        instruction_data_type = None
+        instruction_data_type = DataType.UNDEFINED
         mixed_counter = 0
         for current_data_type in DataType:
             if current_data_type.value in instruction:
@@ -289,7 +273,7 @@ class PTXParser:
                 if current_data_type in all_floating_types:
                     mixed_counter += 1
 
-        if instruction_data_type is not None:
+        if instruction_data_type != DataType.UNDEFINED:
             is_floating_point = instruction_data_type in all_floating_types
 
             is_mixed_precision = is_floating_point and mixed_counter > 1
@@ -306,7 +290,7 @@ class PTXParser:
 
         ############### Search for the state space ###############
 
-        instruction_state_space = None
+        instruction_state_space = StateSpace.UNDEFINED
         for current_state_space in StateSpace:
             if current_state_space.value in instruction:
                 instruction_state_space = current_state_space
@@ -314,31 +298,11 @@ class PTXParser:
 
         ############### Search for the instruction type and name ###############
 
-        to_search_instructions_enums = {
-            InstructionType.INTEGER_ARITHMETIC: IntegerArithmeticInstructions,
-            InstructionType.EXTENDED_PRECISION_INTEGER_ARITHMETIC: ExtendedPrecisionIntegerArithmeticInstructions,
-            InstructionType.FLOATING_POINT: FloatingPointInstructions,
-            InstructionType.HALF_PRECISION_FLOATING_POINT: HalfPrecisionFloatingPointInstructions,
-            InstructionType.MIXED_PRECISION_FLOATING_POINT: MixedPrecisionFloatingPointInstructions,
-            InstructionType.COMPARISON_AND_SELECTION: ComparisonAndSelectionInstructions,
-            InstructionType.HALF_PRECISION_COMPARISON: HalfPrecisionComparisonInstructions,
-            InstructionType.LOGIC_AND_SHIFT: LogicAndShiftInstructions,
-            InstructionType.DATA_MOVEMENT_AND_CONVERSION: DataMovementAndConversionInstructions,
-            InstructionType.TEXTURE: TextureInstructions,
-            InstructionType.SURFACE: SurfaceInstructions,
-            InstructionType.CONTROL_FLOW: ControlFlowInstructions,
-            InstructionType.PARALLEL_SYNCHRONIZATION_AND_COMMUNICATION: ParallelSynchronizationAndCommunicationInstructions,
-            InstructionType.WARP_LEVEL_MATRIX_MULTIPLY_ACCUMULATE: WarpLevelMatrixMultiplyAccumulateInstructions,
-            InstructionType.ASYNCHRONOUS_WARGROUP_MATRIX_MULTIPLY_ACCUMULATE: AsynchronousWarpgroupMatrixMultiplyAccumulateInstructions,
-            InstructionType.TENSORCORE_5TH_GEN_FAMILY: TensorCore5thGenFamilyInstructions,
-            InstructionType.STACK_MANIPULATION: StackManipulationInstructions,
-            InstructionType.VIDEO: VideoInstructions,
-            InstructionType.MISCELLANEOUS: MiscellaneousInstructions,
-        }
+        to_search_instructions_enums = deepcopy(INSTRUCTION_ENUM_MAP)
 
         # Some of the instructions sets have equal names (like add for integer and floating point)
         # So they need to be removed accordingly depending on the data type
-        if instruction_data_type is not None:
+        if instruction_data_type != DataType.UNDEFINED:
             if is_floating_point:
                 del to_search_instructions_enums[InstructionType.INTEGER_ARITHMETIC]
 
@@ -451,7 +415,7 @@ class PTXParser:
         # If the previous instruction wrote to one of the registers this instruction reads,
         # then the offset is -1, so look for the max starting at -inf (no dependecy)
         max_offset = float("-inf")
-        dependency_type = None
+        dependency_type = DependencyType.NO_DEPENDENCY
         for operand in read_operands:
 
             # If its a memory address, extract the register/param, examples:

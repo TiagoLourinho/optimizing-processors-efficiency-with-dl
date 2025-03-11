@@ -4,12 +4,15 @@ from enum import Enum, auto
 class DependencyType(Enum):
     """Defines the types of dependecies (happen when an instruction writes to a register that is going to be read after, RAW)"""
 
+    NO_DEPENDENCY = auto()
     MEMORY = auto()
     COMPUTATION = auto()
 
 
 class DataType(Enum):
     """Fundamental data types (https://docs.nvidia.com/cuda/parallel-thread-execution/#fundamental-types-fundamental-type-specifiers)"""
+
+    UNDEFINED = ""
 
     # Signed integer
     S8 = ".s8"
@@ -42,6 +45,8 @@ class DataType(Enum):
 
 class StateSpace(Enum):
     """State Spaces (https://docs.nvidia.com/cuda/parallel-thread-execution/#state-spaces-state-spaces-tab)"""
+
+    UNDEFINED = ""
 
     REG = ".reg"  # Registers, fast.
     SREG = ".sreg"  # Special registers. Read-only; pre-defined; platform-specific.

@@ -28,6 +28,38 @@ from .PTX_ISA_enums import (
     WarpLevelMatrixMultiplyAccumulateInstructions,
 )
 
+# Dictionary mapping InstructionType to its respective Enum class
+INSTRUCTION_ENUM_MAP = {
+    InstructionType.INTEGER_ARITHMETIC: IntegerArithmeticInstructions,
+    InstructionType.EXTENDED_PRECISION_INTEGER_ARITHMETIC: ExtendedPrecisionIntegerArithmeticInstructions,
+    InstructionType.FLOATING_POINT: FloatingPointInstructions,
+    InstructionType.HALF_PRECISION_FLOATING_POINT: HalfPrecisionFloatingPointInstructions,
+    InstructionType.MIXED_PRECISION_FLOATING_POINT: MixedPrecisionFloatingPointInstructions,
+    InstructionType.COMPARISON_AND_SELECTION: ComparisonAndSelectionInstructions,
+    InstructionType.HALF_PRECISION_COMPARISON: HalfPrecisionComparisonInstructions,
+    InstructionType.LOGIC_AND_SHIFT: LogicAndShiftInstructions,
+    InstructionType.DATA_MOVEMENT_AND_CONVERSION: DataMovementAndConversionInstructions,
+    InstructionType.TEXTURE: TextureInstructions,
+    InstructionType.SURFACE: SurfaceInstructions,
+    InstructionType.CONTROL_FLOW: ControlFlowInstructions,
+    InstructionType.PARALLEL_SYNCHRONIZATION_AND_COMMUNICATION: ParallelSynchronizationAndCommunicationInstructions,
+    InstructionType.WARP_LEVEL_MATRIX_MULTIPLY_ACCUMULATE: WarpLevelMatrixMultiplyAccumulateInstructions,
+    InstructionType.ASYNCHRONOUS_WARGROUP_MATRIX_MULTIPLY_ACCUMULATE: AsynchronousWarpgroupMatrixMultiplyAccumulateInstructions,
+    InstructionType.TENSORCORE_5TH_GEN_FAMILY: TensorCore5thGenFamilyInstructions,
+    InstructionType.STACK_MANIPULATION: StackManipulationInstructions,
+    InstructionType.VIDEO: VideoInstructions,
+    InstructionType.MISCELLANEOUS: MiscellaneousInstructions,
+}
+
+# Assign a unique global index to each instruction across all enums
+global_index_counter = 0
+GLOBAL_INSTRUCTION_INDEX = {}
+
+for enum in INSTRUCTION_ENUM_MAP.values():
+    for member in list(enum):
+        GLOBAL_INSTRUCTION_INDEX[member] = global_index_counter
+        global_index_counter += 1
+
 
 @dataclass
 class EncodedInstruction:
@@ -42,7 +74,7 @@ class EncodedInstruction:
     instruction_index: int
     """ The index of this instruction on the kernel definition """
 
-    branching_label: list[str] | None
+    branching_label: str | None
     """ The branching label this instruction branches to (or None if a normal instruction) """
 
     #################### Information encoded on the vector ####################
@@ -73,26 +105,26 @@ class EncodedInstruction:
     )
     """ The instruction itself (type defined by `instruction_type`) """
 
-    state_space: StateSpace | None
+    state_space: StateSpace
     """ The state (memory) space of the instruction """
 
-    data_type: DataType | None
+    data_type: DataType
     """ The result data type """
 
     written_operands: list[str]
-    """ Ouputs operands of the instruction (that are written, usually just 1) """
+    """ Outputs operands of the instruction (that are written, usually just 1) """
 
     read_operands: list[str]
     """ Inputs operands of the instruction (that are read) """
 
     closest_dependency: int
     """ 
-    Identifies the offset to the closest instruction that wrote on a register that this instructin reads 
+    Identifies the offset to the closest instruction that wrote on a register that this instruction reads 
     (-1 for the previous instruction, -2 for two before, etc, -inf for no dependencies) 
     """
 
-    dependecy_type: DependencyType | None
-    """ Identifies the type of dependecy, in case it exists """
+    dependecy_type: DependencyType
+    """ Identifies the type of dependency, in case it exists """
 
     is_conditional: bool
     """ Whether or not this encoded instruction is inside a conditional block """
@@ -110,7 +142,9 @@ class EncodedInstruction:
 
         return [
             self.__get_enum_index(InstructionType, self.instruction_type),
-            self.__get_enum_index(type(self.instruction_name), self.instruction_name),
+            GLOBAL_INSTRUCTION_INDEX[
+                self.instruction_name
+            ],  # Use global index for unique instruction representation
             self.__get_enum_index(StateSpace, self.state_space),
             self.__get_enum_index(DataType, self.data_type),
             len(self.written_operands),
@@ -124,7 +158,4 @@ class EncodedInstruction:
     def __get_enum_index(self, enum: Enum, enum_member: any) -> int:
         """Returns the index of the member of the enum"""
 
-        try:
-            return list(enum).index(enum_member)
-        except ValueError:
-            return -1
+        return list(enum).index(enum_member)
