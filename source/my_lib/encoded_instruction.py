@@ -134,26 +134,30 @@ class EncodedInstruction:
 
     def __str__(self):
         data_dict = asdict(self)
-        data_dict["encoded vector"] = self.to_array()
+        data_dict["encoded vector"] = self.to_dict()
         return json.dumps(data_dict, indent=4, default=str)
 
-    def to_array(self):
-        """Transforms the encoded instruction into an array"""
+    def to_dict(self):
+        """Transforms the encoded instruction into a dictionary separating the categorical and numerical features"""
 
-        return [
-            self.__get_enum_index(InstructionType, self.instruction_type),
-            GLOBAL_INSTRUCTION_INDEX[
-                self.instruction_name
-            ],  # Use global index for unique instruction representation
-            self.__get_enum_index(StateSpace, self.state_space),
-            self.__get_enum_index(DataType, self.data_type),
-            len(self.written_operands),
-            len(self.read_operands),
-            self.closest_dependency,
-            self.__get_enum_index(DependencyType, self.dependecy_type),
-            1 if self.is_conditional else 0,
-            self.branching_offset,
-        ]
+        return {
+            "categorical": [
+                self.__get_enum_index(InstructionType, self.instruction_type),
+                GLOBAL_INSTRUCTION_INDEX[
+                    self.instruction_name
+                ],  # Use the global index as it can be from multiple enums
+                self.__get_enum_index(StateSpace, self.state_space),
+                self.__get_enum_index(DataType, self.data_type),
+                self.__get_enum_index(DependencyType, self.dependecy_type),
+            ],
+            "numerical": [
+                len(self.written_operands),
+                len(self.read_operands),
+                self.closest_dependency,
+                int(self.is_conditional),
+                self.branching_offset,
+            ],
+        }
 
     def __get_enum_index(self, enum: Enum, enum_member: any) -> int:
         """Returns the index of the member of the enum"""

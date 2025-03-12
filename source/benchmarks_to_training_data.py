@@ -68,7 +68,7 @@ def main(data: dict, config: dict):
                 benchmark_name = ptx_file.replace(".ptx", "")
 
                 data["ptxs"][benchmark_name] = ptx_parser.parse(
-                    os.path.join(PTX_PATH, ptx_file), convert_to_vectors=True
+                    os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
                 )
 
             # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics

@@ -14,7 +14,7 @@ class PTXParser:
     """Handles the parsing of a PTX file and instruction encoding"""
 
     def parse(
-        self, ptx_file: str, convert_to_vectors: bool = False
+        self, ptx_file: str, convert_to_dicts: bool = False
     ) -> dict[str : list[EncodedInstruction]] | dict[str : list[list]]:
         """
         Parses the PTX file and encodes the kernels as a sequence
@@ -23,8 +23,8 @@ class PTXParser:
         ----------
         ptx_file: str
             The PTX file to parse
-        convert_to_vectors: bool = False
-            Whether or not to convert the encoded instructions to vectors when returning
+        convert_to_dicts: bool = False
+            Whether or not to convert the encoded instructions to dicts when returning
 
         Returns
         -------
@@ -194,14 +194,14 @@ class PTXParser:
 
                 kernel_sequences[current_kernel].append(encoded_instruction)
 
-        if convert_to_vectors:
+        if convert_to_dicts:
 
             converted_kernel_sequences = {}
             for kernel_name, encoded_instructions_list in kernel_sequences.items():
                 converted_kernel_sequences[kernel_name] = []
                 for encoded_instruction in encoded_instructions_list:
                     converted_kernel_sequences[kernel_name].append(
-                        encoded_instruction.to_array()
+                        encoded_instruction.to_dict()
                     )
 
             return converted_kernel_sequences
