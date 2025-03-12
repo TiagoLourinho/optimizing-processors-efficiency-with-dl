@@ -40,11 +40,11 @@ class BenchmarkMonitor:
     ########## Others ##########
 
     METRICS = [
-        GPUQueries.GRAPHICS_CLOCK,
-        GPUQueries.MEMORY_CLOCK,
-        GPUQueries.TEMPERATURE,
+        # GPUQueries.GRAPHICS_CLOCK,
+        # GPUQueries.MEMORY_CLOCK,
+        # GPUQueries.TEMPERATURE,
         GPUQueries.POWER,
-        GPUQueries.GPU_UTILIZATION,
+        # GPUQueries.GPU_UTILIZATION,
     ]
     """ The NVML metrics to collect from the GPU """
 
