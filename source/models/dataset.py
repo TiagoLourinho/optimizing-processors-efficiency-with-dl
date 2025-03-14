@@ -8,7 +8,7 @@ class TrainingDataset(Dataset):
     """Training dataset that expects data format exported by the benchmarks_to_training_data.py tool"""
 
     def __init__(self, samples: List, ptx: dict):
-        self.ptxs: dict[str : dict[str:List]] = self.__convert_to_tensors(ptx)
+        self.ptxs: dict[str : dict[str:List]] = self.__format_ptx(ptx)
         self.data: List = self.__convert_to_tensors(samples)
 
     def __len__(self):
@@ -19,7 +19,7 @@ class TrainingDataset(Dataset):
 
         benchmark_name = sample["benchmark_name"]
 
-        ptx = self.ptxs[benchmark_name]
+        split_ptx = self.ptxs[benchmark_name]
 
         # Hardware and performance metrics
         core_freq = sample["graphics_frequency"]
@@ -33,7 +33,7 @@ class TrainingDataset(Dataset):
         median_runtime = sample["nvml_metrics"]["median_run_time"]
 
         return {
-            "ptx": ptx,
+            "split_ptx": split_ptx,
             "core_freq": core_freq,
             "mem_freq": mem_freq,
             "ncu_metrics": ncu_metrics,
@@ -61,6 +61,119 @@ class TrainingDataset(Dataset):
 
         return data
 
+    def __format_ptx(self, ptxs):
+        """
+        Splits and formats the ptx data into just two lists of equal size, containing the categorical and numerical parts of the kernels
+
+        Example input:
+        {
+            "cuda-samples_Samples_6_Performance_cudaGraphsPerfScaling_cudaGraphPerfScaling": {
+            "_Z5emptyv": [
+                {
+                    "categorical": [
+                        11,
+                        116,
+                        0,
+                        0,
+                        0
+                    ],
+                    "numerical": [
+                        0,
+                        0,
+                        -Infinity,
+                        0,
+                        0
+                    ]
+                }
+            ],
+            "_Z5delayx": [
+                {
+                    "categorical": [
+                        8,
+                        81,
+                        0,
+                        8,
+                        0
+                    ],
+                    "numerical": [
+                        1,
+                        1,
+                        -Infinity,
+                        0,
+                        0
+                    ]
+                },
+                {
+                    "categorical": [
+                        8,
+                        78,
+                        0,
+                        8,
+                        0
+                    ],
+                    "numerical": [
+                        1,
+                        1,
+                        -Infinity,
+                        0,
+                        0
+                    ]
+                }
+            ]
+        }
+
+        Example output:
+        {
+            "cuda-samples_Samples_6_Performance_cudaGraphsPerfScaling_cudaGraphPerfScaling": {
+                "categorical_kernels_parts": [
+                    torch.tensor([
+                        [11, 116, 0, 0, 0]
+                    ], dtype=torch.int64),  # Shape: (1, 5) for _Z5emptyv
+                    torch.tensor([
+                        [8, 81, 0, 8, 0],
+                        [8, 78, 0, 8, 0]
+                    ], dtype=torch.int64)  # Shape: (2, 5) for _Z5delayx
+                ],
+                "numerical_kernels_parts": [
+                    torch.tensor([
+                        [0, 0, float('-inf'), 0, 0]
+                    ], dtype=torch.float32),  # Shape: (1, 5) for _Z5emptyv
+                    torch.tensor([
+                        [1, 1, float('-inf'), 0, 0],
+                        [1, 1, float('-inf'), 0, 0]
+                    ], dtype=torch.float32)  # Shape: (2, 5) for _Z5delayx
+                ]
+            }
+        }
+        """
+
+        formatted_data = {}
+
+        for benchmark_names, kernels in ptxs.items():
+            categorical_kernels_parts = []
+            numerical_kernels_parts = []
+
+            for kernel_name, kernel_instructions in kernels.items():
+                categorical_list = []
+                numerical_list = []
+
+                for instruction in kernel_instructions:
+                    categorical_list.append(instruction["categorical"])
+                    numerical_list.append(instruction["numerical"])
+
+                categorical_tensor = torch.tensor(categorical_list, dtype=torch.int32)
+                numerical_tensor = torch.tensor(numerical_list, dtype=torch.float32)
+
+                categorical_kernels_parts.append(categorical_tensor)
+                numerical_kernels_parts.append(numerical_tensor)
+
+            formatted_data[benchmark_names] = {
+                "categorical_kernels_parts": categorical_kernels_parts,
+                "numerical_kernels_parts": numerical_kernels_parts,
+            }
+
+        return formatted_data
+
 
 if __name__ == "__main__":
     import json
@@ -68,7 +181,7 @@ if __name__ == "__main__":
     with open("training_data.json", "r") as f:
         data = json.load(f)
 
-        dataset = TrainingDataset(data)
+        dataset = TrainingDataset(samples=data["training_data"], ptx=data["ptxs"])
 
-    item = dataset.__getitem__(1)
+    item = dataset.__getitem__(0)
     print(item)
