@@ -163,3 +163,19 @@ class EncodedInstruction:
         """Returns the index of the member of the enum"""
 
         return list(enum).index(enum_member)
+
+    @classmethod
+    def get_enconding_info(cls):
+        """Returns the categorical sizes of the enums and the number of numerical features"""
+
+        # Should match the order and features defined in to_dict
+        return {
+            "categorical_sizes": [
+                len(InstructionType),
+                len(GLOBAL_INSTRUCTION_INDEX),
+                len(StateSpace),
+                len(DataType),
+                len(DependencyType),
+            ],
+            "n_numerical_features": 5,
+        }

@@ -9,6 +9,7 @@ from my_lib.compiler import Compiler
 from my_lib.gpu import GPU
 from my_lib.PTX_parser import PTXParser
 from my_lib.utils import are_there_other_users, collect_system_info, validate_config
+from my_lib.encoded_instruction import EncodedInstruction
 
 # Set umask to 000 to allow full read, write, and execute for everyone
 # avoiding the normal user not being able to modify the files created
@@ -19,6 +20,7 @@ data: dict = {
     "config": {},  # The config used to profile
     "system_info": {},  # System information
     "did_other_users_login": False,  # Whether or not another user logged in during metrics collection
+    "models_info": {},  # Extra info needed in the pytorch side to create the models
     "ptxs": {},  # Contains the PTX of every considered benchmark
     "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/ncu metrics)
 }
@@ -114,6 +116,11 @@ def main(data: dict, config: dict):
                 print(
                     "\nWarning: Other users logged in during execution of the script. Script might need to run again.\n"
                 )
+
+            data["models_info"] = EncodedInstruction.get_enconding_info()
+            data["models_info"]["n_ncu_metrics"] = len(
+                data["training_data"][0]["ncu_metrics"]
+            )
 
             training_data_file = "training_data.json"
             with open(training_data_file, "w") as json_file:
