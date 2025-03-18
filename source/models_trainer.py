@@ -28,6 +28,8 @@ def main():
     dropout_rate = 0.3
     learning_rate = 0.001
     epochs = 10
+    runtime_loss_weight = 1
+    power_loss_weight = 1
 
     # Initialize models
     ptx_encoder = PTXEncoder(
@@ -90,7 +92,7 @@ def main():
             runtime_loss = criterion(runtime_prediction, avg_runtime)
 
             # Total loss calculation
-            loss = power_loss + runtime_loss
+            loss = power_loss_weight * power_loss + runtime_loss_weight * runtime_loss
             total_loss += loss.item()
 
             # Backpropagate
