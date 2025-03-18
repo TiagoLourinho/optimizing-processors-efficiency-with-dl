@@ -37,11 +37,9 @@ class KernelEncoder(nn.Module):
             [nn.Embedding(vocab_size, embedding_dim) for vocab_size in vocab_sizes]
         )
 
-        # Fully connected layer to process numerical features
-        self.numerical_fc = nn.Linear(numerical_dim, embedding_dim)
-
         self.lstm = nn.LSTM(
-            input_size=len(vocab_sizes) * embedding_dim + embedding_dim,
+            input_size=len(vocab_sizes) * embedding_dim
+            + numerical_dim,  # Numerical features are directly concatenated
             hidden_size=hidden_dim,
             num_layers=num_layers,
         )
@@ -73,14 +71,10 @@ class KernelEncoder(nn.Module):
             embedded_features, dim=-1
         )  # (seq_len, num_categorical * embedding_dim)
 
-        # Process numerical features
-        numerical_features = self.numerical_fc(
-            numerical_inputs
-        )  # (seq_len, embedding_dim)
-
+        # Concatenate numerical features directly without transformation
         lstm_input = torch.cat(
-            [embedded_features, numerical_features], dim=-1
-        )  # (seq_len, num_categorical * embedding_dim + embedding_dim)
+            [embedded_features, numerical_inputs], dim=-1
+        )  # (seq_len, num_categorical * embedding_dim + numerical_dim)
 
         _, (hidden_state, _) = self.lstm(lstm_input)
 
