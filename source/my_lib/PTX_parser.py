@@ -266,7 +266,10 @@ class PTXParser:
         instruction_data_type = DataType.UNDEFINED
         mixed_counter = 0
         for current_data_type in DataType:
-            if current_data_type.value in instruction:
+            if (
+                current_data_type != DataType.UNDEFINED
+                and current_data_type.value in instruction
+            ):
                 instruction_data_type = current_data_type
 
                 # Look for mixed precision instructions
@@ -292,7 +295,10 @@ class PTXParser:
 
         instruction_state_space = StateSpace.UNDEFINED
         for current_state_space in StateSpace:
-            if current_state_space.value in instruction:
+            if (
+                current_state_space != StateSpace.UNDEFINED
+                and current_state_space.value in instruction
+            ):
                 instruction_state_space = current_state_space
                 break
 

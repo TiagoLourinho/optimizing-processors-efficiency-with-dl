@@ -12,7 +12,7 @@ class DependencyType(Enum):
 class DataType(Enum):
     """Fundamental data types (https://docs.nvidia.com/cuda/parallel-thread-execution/#fundamental-types-fundamental-type-specifiers)"""
 
-    UNDEFINED = ""
+    UNDEFINED = "UNDEFINED"
 
     # Signed integer
     S8 = ".s8"
@@ -46,7 +46,7 @@ class DataType(Enum):
 class StateSpace(Enum):
     """State Spaces (https://docs.nvidia.com/cuda/parallel-thread-execution/#state-spaces-state-spaces-tab)"""
 
-    UNDEFINED = ""
+    UNDEFINED = "UNDEFINED"
 
     REG = ".reg"  # Registers, fast.
     SREG = ".sreg"  # Special registers. Read-only; pre-defined; platform-specific.
