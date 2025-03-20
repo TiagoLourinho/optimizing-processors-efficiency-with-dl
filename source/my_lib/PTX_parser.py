@@ -420,7 +420,7 @@ class PTXParser:
         # Check when the operands where last written:
         # If the previous instruction wrote to one of the registers this instruction reads,
         # then the offset is -1, so look for the max starting at -inf (no dependecy)
-        max_offset = float("-inf")
+        max_offset = -1e30  # Instead of float(-inf) for better numerical stability
         dependency_type = DependencyType.NO_DEPENDENCY
         for operand in read_operands:
 
