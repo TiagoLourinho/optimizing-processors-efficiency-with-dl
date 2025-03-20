@@ -62,11 +62,11 @@ def main():
         total_loss = 0
         for batch in dataloader:
             split_ptx = batch["split_ptx"]
-            core_freq = batch["core_freq"]
-            mem_freq = batch["mem_freq"]
+            core_freq = batch["graphics_frequency"]
+            mem_freq = batch["memory_frequency"]
             ncu_metrics = batch["ncu_metrics"]
-            avg_power = batch["avg_power"]
-            avg_runtime = batch["avg_runtime"]
+            avg_power = batch["average_POWER"]
+            avg_runtime = batch["median_run_time"]
 
             # Reset
             runtime_optimizer.zero_grad()

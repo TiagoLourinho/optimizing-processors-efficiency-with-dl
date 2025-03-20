@@ -34,11 +34,11 @@ class TrainingDataset(Dataset):
 
         return {
             "split_ptx": split_ptx,
-            "core_freq": core_freq,
-            "mem_freq": mem_freq,
+            "graphics_frequency": core_freq,
+            "memory_frequency": mem_freq,
             "ncu_metrics": ncu_metrics,
-            "avg_power": avg_power,
-            "median_runtime": median_runtime,
+            "average_POWER": avg_power,
+            "median_run_time": median_runtime,
         }
 
     def __convert_to_tensors(self, data):
