@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tensor
 
 
 class NVMLMetricsPredictor(nn.Module):
@@ -41,25 +40,29 @@ class NVMLMetricsPredictor(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(
-        self, ptx_vec: Tensor, core_freq: Tensor, mem_freq: Tensor, ncu_metrics: Tensor
-    ) -> Tensor:
+        self,
+        ptx_vec: torch.Tensor,
+        core_freq: torch.Tensor,
+        mem_freq: torch.Tensor,
+        ncu_metrics: torch.Tensor,
+    ) -> torch.Tensor:
         """
         Forward pass of the model.
 
         Parameters
         ----------
-        ptx_vec : Tensor
-            Tensor of shape (ptx_dim,) representing the PTX vector.
-        core_freq : Tensor
-            Tensor of shape (1,) representing core frequency.
-        mem_freq : Tensor
-            Tensor of shape (1,) representing memory frequency.
-        ncu_metrics : Tensor
-            Tensor of shape (ncu_dim,) representing multiple NCU metrics.
+        ptx_vec : torch.Tensor
+            torch.Tensor of shape (ptx_dim,) representing the PTX vector.
+        core_freq : torch.Tensor
+            torch.Tensor of shape (1,) representing core frequency.
+        mem_freq : torch.Tensor
+            torch.Tensor of shape (1,) representing memory frequency.
+        ncu_metrics : torch.Tensor
+            torch.Tensor of shape (ncu_dim,) representing multiple NCU metrics.
 
         Returns
         -------
-        Tensor
+        torch.Tensor
             Predicted NVML-related performance metric of shape (1,).
         """
         # Process PTX embedding
