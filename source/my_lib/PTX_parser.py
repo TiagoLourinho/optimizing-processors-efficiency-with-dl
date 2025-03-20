@@ -159,6 +159,11 @@ class PTXParser:
                         branch_labels=branch_labels,
                     )
 
+                    # Some kernels are defined in the PTX but
+                    # don't actually have instructions, so remove empty kernels
+                    if len(kernel_sequences[current_kernel]) == 0:
+                        del kernel_sequences[current_kernel]
+
                     current_kernel = None
                     instruction_index = 0
                     last_written = {}
