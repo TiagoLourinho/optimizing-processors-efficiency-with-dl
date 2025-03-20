@@ -90,9 +90,32 @@ def main(data: dict, config: dict):
                             nvml_did_other_users_login,
                         ) = benchmark_monitor.run_nvml(benchmark_path=executable_path)
 
-                        ncu_metrics, ncu_did_other_users_login = (
-                            benchmark_monitor.run_ncu(benchmark_path=executable_path)
-                        )
+                        # Some benchmarks require extra arguments like files and etc
+                        # So NCU will produce a warning saying that no kernels were profilled
+                        # And the NCU report won't be created resulting in the FileNotFoundError
+                        try:
+                            ncu_metrics, ncu_did_other_users_login = (
+                                benchmark_monitor.run_ncu(
+                                    benchmark_path=executable_path
+                                )
+                            )
+                        except FileNotFoundError:
+                            # Delete the benchmark as it can't be profilled
+                            print(
+                                f"Removing {benchmark_name} as no kernels were profilled."
+                            )
+                            executable_path = os.path.join(
+                                EXECUTABLES_PATH, f"{benchmark_name}.out"
+                            )
+                            os.remove(executable_path)
+
+                            ptx_path = os.path.join(PTX_PATH, f"{benchmark_name}.ptx")
+                            os.remove(ptx_path)
+
+                            del data["ptxs"][benchmark_name]
+
+                            time.sleep(gpu.sleep_time)
+                            continue
 
                         data["did_other_users_login"] = (
                             data["did_other_users_login"]
