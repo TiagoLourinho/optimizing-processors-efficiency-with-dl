@@ -15,7 +15,7 @@ def main():
     with open("training_data.json", "r") as f:
         data = json.load(f)
     dataset = TrainingDataset(samples=data["training_data"], ptx=data["ptxs"])
-    dataloader = DataLoader(dataset, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=None, shuffle=True)
 
     # Hyperparameters
     categorical_sizes = data["models_info"]["categorical_sizes"]
