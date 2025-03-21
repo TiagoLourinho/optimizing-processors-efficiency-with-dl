@@ -1,15 +1,16 @@
 import json
 import os
-from datetime import datetime
 import time
+from datetime import datetime
 
 from config import config
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.compiler import Compiler
+from my_lib.encoded_instruction import EncodedInstruction
 from my_lib.gpu import GPU
 from my_lib.PTX_parser import PTXParser
 from my_lib.utils import are_there_other_users, collect_system_info, validate_config
-from my_lib.encoded_instruction import EncodedInstruction
+from tqdm import tqdm
 
 # Set umask to 000 to allow full read, write, and execute for everyone
 # avoiding the normal user not being able to modify the files created
@@ -73,12 +74,17 @@ def main(data: dict, config: dict):
                     os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
                 )
 
+            progress_bar = tqdm(
+                desc="Collecting samples",
+            )
+
             # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
             for memory_clock in gpu.get_supported_memory_clocks():
                 for graphics_clock in gpu.get_supported_graphics_clocks(
                     memory_clock=memory_clock
                 ):
                     for executable in os.listdir(EXECUTABLES_PATH):
+                        progress_bar.update(1)
 
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
@@ -134,6 +140,8 @@ def main(data: dict, config: dict):
                         )
 
                         time.sleep(gpu.sleep_time)
+
+            progress_bar.close()
 
             if data["did_other_users_login"]:
                 print(

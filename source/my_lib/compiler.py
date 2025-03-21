@@ -99,7 +99,7 @@ class Compiler:
         total = successfully_compiled + compilation_errors
         success_rate = (successfully_compiled / total) * 100
         print(
-            f"\n{successfully_compiled}/{total} CUDA files successfully compiled ({success_rate:.2f}%)."
+            f"\n{successfully_compiled}/{total} CUDA files successfully compiled ({success_rate:.2f}%).\n"
         )
 
 

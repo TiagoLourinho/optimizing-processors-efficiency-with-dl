@@ -7,7 +7,6 @@ from collections import defaultdict
 from typing import Any
 
 import numpy as np
-from tqdm import tqdm
 
 from .gpu import GPU, GPUQueries
 from .utils import are_there_other_users
@@ -111,8 +110,6 @@ class BenchmarkMonitor:
             - A boolean representing whether or not another user logged in during the sampling
         """
 
-        print("Collecting kernel metrics with NVML...")
-
         try:
             ########## Sampler thread management ##########
 
@@ -163,7 +160,7 @@ class BenchmarkMonitor:
             ########## Run benchmark and collect results ##########
             results = []
 
-            for _ in tqdm(range(self.__nvml_n_runs)):
+            for _ in range(self.__nvml_n_runs):
 
                 # Clean events and return list before running
                 sample_event.clear()
@@ -220,8 +217,6 @@ class BenchmarkMonitor:
             - A dict with the metrics collected
             - A boolean representing whether or not another user logged in during the sampling
         """
-
-        print("Collecting kernel metrics with NCU...")
 
         benchmark_filename = os.path.basename(benchmark_path)
         report_filename = os.path.splitext(benchmark_filename)[0] + ".ncu-rep"
