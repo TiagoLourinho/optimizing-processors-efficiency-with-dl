@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class NVMLMetricsPredictor(nn.Module):
+class NVMLScalingFactorsPredictor(nn.Module):
     """
-    Neural network model for predicting an NVML-related performance metric from
+    Neural network model for predicting an NVML-related performance metric scaling factor from
     PTX embeddings, operating frequencies and NCU features.
 
     Parameters
@@ -23,7 +23,7 @@ class NVMLMetricsPredictor(nn.Module):
     def __init__(
         self, ptx_dim: int, ncu_dim: int, hidden_dim: int, dropout_rate: float
     ):
-        super(NVMLMetricsPredictor, self).__init__()
+        super(NVMLScalingFactorsPredictor, self).__init__()
 
         # FC layer for PTX vector representation
         self.fc_ptx = nn.Linear(ptx_dim, hidden_dim)
@@ -63,7 +63,7 @@ class NVMLMetricsPredictor(nn.Module):
         Returns
         -------
         torch.Tensor
-            Predicted NVML-related performance metric of shape (1,).
+            Predicted NVML-related scaling factor of shape (1,).
         """
         # Process PTX embedding
         ptx_out = F.relu(self.fc_ptx(ptx_vec))

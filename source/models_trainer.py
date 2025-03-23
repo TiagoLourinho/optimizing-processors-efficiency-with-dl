@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from models.dataset import TrainingDataset
-from models.predictor import NVMLMetricsPredictor
+from models.predictor import NVMLScalingFactorsPredictor
 from models.ptx_encoder import PTXEncoder
 from torch.utils.data import DataLoader
 
@@ -39,13 +39,13 @@ def main():
         hidden_dim=lstm_hidden_dim,
         num_layers=lstm_layers,
     )
-    power_predictor = NVMLMetricsPredictor(
+    power_predictor = NVMLScalingFactorsPredictor(
         ptx_dim=lstm_hidden_dim,
         ncu_dim=n_ncu_metrics,
         hidden_dim=fnn_hidden_dim,
         dropout_rate=dropout_rate,
     )
-    runtime_predictor = NVMLMetricsPredictor(
+    runtime_predictor = NVMLScalingFactorsPredictor(
         ptx_dim=lstm_hidden_dim,
         ncu_dim=n_ncu_metrics,
         hidden_dim=fnn_hidden_dim,
@@ -65,8 +65,8 @@ def main():
             core_freq = batch["graphics_frequency"]
             mem_freq = batch["memory_frequency"]
             ncu_metrics = batch["ncu_metrics"]
-            avg_power = batch["average_POWER"]
-            avg_runtime = batch["median_run_time"]
+            power_scaling_factor_gold = batch["power_scaling_factor"]
+            runtime_scaling_factor_gold = batch["runtime_scaling_factor"]
 
             # Reset
             runtime_optimizer.zero_grad()
@@ -80,16 +80,20 @@ def main():
             )
 
             # Predict power
-            power_prediction = power_predictor(
+            power_scaling_factor_prediction = power_predictor(
                 ptx_vec, core_freq, mem_freq, ncu_metrics
             )
-            power_loss = criterion(power_prediction, avg_power)
+            power_loss = criterion(
+                power_scaling_factor_prediction, power_scaling_factor_gold
+            )
 
             # Predict runtime
-            runtime_prediction = runtime_predictor(
+            runtime_scaling_factor_prediction = runtime_predictor(
                 ptx_vec, core_freq, mem_freq, ncu_metrics
             )
-            runtime_loss = criterion(runtime_prediction, avg_runtime)
+            runtime_loss = criterion(
+                runtime_scaling_factor_prediction, runtime_scaling_factor_gold
+            )
 
             # Total loss calculation
             loss = power_loss_weight * power_loss + runtime_loss_weight * runtime_loss
