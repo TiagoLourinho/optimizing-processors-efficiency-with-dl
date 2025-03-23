@@ -9,7 +9,12 @@ from my_lib.compiler import Compiler
 from my_lib.encoded_instruction import EncodedInstruction
 from my_lib.gpu import GPU
 from my_lib.PTX_parser import PTXParser
-from my_lib.utils import are_there_other_users, collect_system_info, validate_config
+from my_lib.utils import (
+    are_there_other_users,
+    collect_system_info,
+    get_nvml_scaling_factors_and_update_baselines,
+    validate_config,
+)
 from tqdm import tqdm
 
 # Set umask to 000 to allow full read, write, and execute for everyone
@@ -79,9 +84,14 @@ def main(data: dict, config: dict):
             )
 
             # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
-            for memory_clock in gpu.get_supported_memory_clocks():
-                for graphics_clock in gpu.get_supported_graphics_clocks(
-                    memory_clock=memory_clock
+            # Start by the higher frequencies so that the baselines can be collected
+            baselines = (
+                dict()
+            )  # For each benchmark, contains the reference runtime and average power
+            for memory_clock in sorted(gpu.get_supported_memory_clocks(), reverse=True):
+                for graphics_clock in sorted(
+                    gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
+                    reverse=True,
                 ):
                     for executable in os.listdir(EXECUTABLES_PATH):
                         progress_bar.update(1)
@@ -135,6 +145,11 @@ def main(data: dict, config: dict):
                                 "memory_frequency": memory_clock,
                                 "graphics_frequency": graphics_clock,
                                 "nvml_metrics": nvml_metrics,
+                                "nvml_scaling_factors": get_nvml_scaling_factors_and_update_baselines(
+                                    benchmark_name=benchmark_name,
+                                    nvml_metrics=nvml_metrics,
+                                    baselines=baselines,
+                                ),
                                 "ncu_metrics": ncu_metrics,
                             }
                         )
