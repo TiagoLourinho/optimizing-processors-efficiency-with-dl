@@ -93,6 +93,10 @@ def main(data: dict, config: dict):
                     gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
                     reverse=True,
                 ):
+
+                    gpu.memory_clk = memory_clock
+                    gpu.graphics_clk = graphics_clock
+
                     for executable in os.listdir(EXECUTABLES_PATH):
                         progress_bar.update(1)
 
