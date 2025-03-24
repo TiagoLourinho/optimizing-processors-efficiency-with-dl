@@ -18,7 +18,9 @@
 
 To run the tool that converts the benchmarks to the training data (PTX and metrics collected) run:
 
-`sudo PATH="$PATH" python3 source/benchmarks_to_training_data.py`
+`sudo <PYTHON-PATH> source/benchmarks_to_training_data.py`
+
+_Note: PYTHON-PATH can be found using `which python3`._
 
 ## Useful `nvidia-smi` commands
 
