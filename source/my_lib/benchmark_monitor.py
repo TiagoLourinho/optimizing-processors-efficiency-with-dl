@@ -11,12 +11,6 @@ import numpy as np
 from .gpu import GPU, GPUQueries
 from .utils import are_there_other_users
 
-MatplotlibFigure = Any
-""" 
-Placeholder for the matplotlib figure class (not direclty imported because of C++ library incompatibilities)
-
-Check: https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure
-"""
 
 RUN_SAMPLES = dict[str, list[float]]
 """ 
@@ -93,7 +87,7 @@ class BenchmarkMonitor:
 
     def run_nvml(
         self, benchmark_path: str
-    ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, MatplotlibFigure, bool]:
+    ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, bool]:
         """
         Runs the benchmark and monitors it using nvml
 
@@ -104,9 +98,8 @@ class BenchmarkMonitor:
 
         Returns
         -------
-        tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, MatplotlibFigure, bool]
+        tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, bool]
             - NVML_RESULTS_SUMMARY, RUN_SAMPLES -> Check docstring of __process_samples
-            - A figure with the execution plots
             - A boolean representing whether or not another user logged in during the sampling
         """
 
@@ -190,12 +183,11 @@ class BenchmarkMonitor:
             summary_results, nvml_samples = self.__process_nvml_samples(
                 all_run_samples=results
             )
-            figure = self.__create_nvml_plots(run_samples=nvml_samples)
 
             # Wait for thread to put the result
             users_results_ready_event.wait()
 
-            return summary_results, nvml_samples, figure, did_other_users_login[-1]
+            return summary_results, nvml_samples, did_other_users_login[-1]
         finally:
             ########## Cleanup ##########
             terminate_event.set()
@@ -360,61 +352,6 @@ class BenchmarkMonitor:
         )
 
         return median_values, all_run_samples[index]
-
-    def __create_nvml_plots(self, run_samples: RUN_SAMPLES) -> MatplotlibFigure:
-        """Creates the matplotlib figure with the metrics samples for a run"""
-
-        # Import locally as NCU and matplotlib use different C++ binaries
-        # and that would result in the following error:
-        #
-        # terminate called after throwing an instance of 'std::bad_cast'
-        # what():  std::bad_cast
-        import matplotlib.pyplot as plt
-
-        n_metrics = len(self.METRICS)
-        n_columns = 2
-        n_rows = int(np.ceil(n_metrics / n_columns))
-
-        fig, axs = plt.subplots(n_rows, n_columns, figsize=(5 * n_columns, 3 * n_rows))
-
-        # Plot the results
-        flat_axs = axs.flat
-        for metric_index, metric in enumerate(self.METRICS):
-
-            # Line
-            flat_axs[metric_index].plot(
-                run_samples["sample_time"],
-                run_samples[metric.name],
-                color="blue",
-                zorder=0,
-            )
-
-            # Sample points
-            flat_axs[metric_index].scatter(
-                run_samples["sample_time"],
-                run_samples[metric.name],
-                marker="o",
-                s=1,
-                color="red",
-                zorder=1,
-            )
-
-            flat_axs[metric_index].set_xlabel("Run time [s]")
-            flat_axs[metric_index].set_ylabel(
-                metric.value
-            )  # The value of the enum contains the name and unit
-
-            flat_axs[metric_index].grid(True)
-
-        # Remove unused plots
-        if n_metrics < n_rows * n_columns:
-            for i in range(n_metrics, n_rows * n_columns):
-                fig.delaxes(flat_axs[i])
-
-        fig.tight_layout()
-        fig.subplots_adjust(top=0.925)  # Spacing for title
-
-        return fig
 
     def __aggregate_ncu_metrics(self, report_path: str) -> dict[str, float]:
         """

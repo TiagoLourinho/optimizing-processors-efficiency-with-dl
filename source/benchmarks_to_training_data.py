@@ -106,7 +106,6 @@ def main(data: dict, config: dict):
                         (
                             nvml_metrics,
                             _,
-                            _,
                             nvml_did_other_users_login,
                         ) = benchmark_monitor.run_nvml(benchmark_path=executable_path)
 
