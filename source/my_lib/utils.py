@@ -28,14 +28,18 @@ def collect_system_info(gpu_name: str) -> dict:
 def are_there_other_users(running_ncu=False) -> bool:
     """Checks if there are other users using the machine"""
 
-    # This script needs sudo, so the current user actually counts as 2 online users
-    max_len = 2
+    usernames = [user.name for user in psutil.users()]
 
-    # NCU spawns another user "root", so account for that
-    if running_ncu:
-        max_len += 1
+    # Check if all user instances belong to the same user
+    first_user = usernames[0]
+    for user in usernames:
+        # Only 2 allowed options:
+        # - All users are the same
+        # - NCU is running and spawns a root user so also allow that
+        if not (user == first_user or (running_ncu and user == "root")):
+            return True
 
-    return len(psutil.users()) > max_len
+    return False
 
 
 def validate_config(config: dict):
