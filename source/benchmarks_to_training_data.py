@@ -93,7 +93,9 @@ def main(data: dict, config: dict):
                     os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
                 )
 
-            progress_bar = tqdm(desc="Collecting samples", unit="sample")
+            progress_bar = tqdm(
+                desc="Collecting samples", unit="sample"
+            )  # Counts succefully collected samples only
 
             # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
             # Start by the higher frequencies so that the baselines can be collected
@@ -145,10 +147,10 @@ def main(data: dict, config: dict):
                                     benchmark_path=executable_path
                                 )
                             )
-                        except (CalledProcessError, FileNotFoundError):
+                        except (CalledProcessError, FileNotFoundError) as e:
                             # Delete the benchmark as it can't be profilled
                             print(
-                                f"\nSkipping {benchmark_name} as it needs extra arguments."
+                                f"\nSkipping {benchmark_name} as it needs extra arguments. Error:\n{str(e)}"
                             )
                             executable_path = os.path.join(
                                 EXECUTABLES_PATH, f"{benchmark_name}.out"
