@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from datetime import datetime
+from subprocess import CalledProcessError
 
 from config import config
 
@@ -112,35 +113,45 @@ def main(data: dict, config: dict):
                     except Exception as e:
                         # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
                         if "power/temperature limits" in str(e).lower():
+                            print(
+                                f"Couldn't change to memory_clk={memory_clock} and graphics_clock={graphics_clock}, skipping."
+                            )
                             continue
                         else:
                             raise
 
                     for executable in os.listdir(EXECUTABLES_PATH):
-                        progress_bar.update(1)
 
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
 
-                        (
-                            nvml_metrics,
-                            _,
-                            nvml_did_other_users_login,
-                        ) = benchmark_monitor.run_nvml(benchmark_path=executable_path)
+                        progress_bar.set_description(
+                            f"Memory: {memory_clock} Hz | Graphics: {graphics_clock} | Benchmark: {benchmark_name}\n"
+                        )
+                        progress_bar.update(1)
 
-                        # Some benchmarks require extra arguments like files and etc
-                        # So NCU will produce a warning saying that no kernels were profilled
-                        # And the NCU report won't be created resulting in the FileNotFoundError
+                        # Some benchmarks require extra arguments like files and etc that aren't provided, so:
+                        # - Either the subprocess will return status 1 while running with NVML (CalledProcessError)
+                        # - Or if it still returns status 0, NCU will produce a warning saying that no kernels were profilled
+                        #   and the NCU report won't be created (FileNotFoundError)
                         try:
+                            (
+                                nvml_metrics,
+                                _,
+                                nvml_did_other_users_login,
+                            ) = benchmark_monitor.run_nvml(
+                                benchmark_path=executable_path
+                            )
+
                             ncu_metrics, ncu_did_other_users_login = (
                                 benchmark_monitor.run_ncu(
                                     benchmark_path=executable_path
                                 )
                             )
-                        except FileNotFoundError:
+                        except (CalledProcessError, FileNotFoundError):
                             # Delete the benchmark as it can't be profilled
                             print(
-                                f"Removing {benchmark_name} as no kernels were profilled."
+                                f"Skipping {benchmark_name} as it needs extra arguments."
                             )
                             executable_path = os.path.join(
                                 EXECUTABLES_PATH, f"{benchmark_name}.out"
