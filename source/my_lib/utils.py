@@ -30,6 +30,10 @@ def are_there_other_users(running_ncu=False) -> bool:
 
     usernames = [user.name for user in psutil.users()]
 
+    # Using tmux no users appear online
+    if len(usernames) == 0:
+        return False
+
     # Check if all user instances belong to the same user
     first_user = usernames[0]
     for user in usernames:
