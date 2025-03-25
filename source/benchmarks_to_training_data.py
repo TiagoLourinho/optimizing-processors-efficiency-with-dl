@@ -93,15 +93,15 @@ def main(data: dict, config: dict):
                     os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
                 )
 
-            progress_bar = tqdm(
-                desc="Collecting samples",
-            )
+            progress_bar = tqdm(desc="Collecting samples", unit="sample")
 
             # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
             # Start by the higher frequencies so that the baselines can be collected
             baselines = (
                 dict()
             )  # For each benchmark, contains the reference runtime and average power
+            total_benchmarks = len(os.listdir(EXECUTABLES_PATH))
+            skipped_benchmarks = 0
             for memory_clock in sorted(gpu.get_supported_memory_clocks(), reverse=True):
                 for graphics_clock in sorted(
                     gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
@@ -114,7 +114,7 @@ def main(data: dict, config: dict):
                         # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
                         if "power/temperature limits" in str(e).lower():
                             print(
-                                f"Couldn't change to memory_clk={memory_clock} and graphics_clock={graphics_clock}, skipping."
+                                f"\nCouldn't change to memory_clk={memory_clock} and graphics_clock={graphics_clock}, skipping."
                             )
                             continue
                         else:
@@ -124,11 +124,6 @@ def main(data: dict, config: dict):
 
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
-
-                        progress_bar.set_description(
-                            f"Memory: {memory_clock} Hz | Graphics: {graphics_clock} | Benchmark: {benchmark_name}\n"
-                        )
-                        progress_bar.update(1)
 
                         # Some benchmarks require extra arguments like files and etc that aren't provided, so:
                         # - Either the subprocess will return status 1 while running with NVML (CalledProcessError)
@@ -151,7 +146,7 @@ def main(data: dict, config: dict):
                         except (CalledProcessError, FileNotFoundError):
                             # Delete the benchmark as it can't be profilled
                             print(
-                                f"Skipping {benchmark_name} as it needs extra arguments."
+                                f"\nSkipping {benchmark_name} as it needs extra arguments."
                             )
                             executable_path = os.path.join(
                                 EXECUTABLES_PATH, f"{benchmark_name}.out"
@@ -164,6 +159,7 @@ def main(data: dict, config: dict):
                             del data["ptxs"][benchmark_name]
 
                             time.sleep(gpu.sleep_time)
+                            skipped_benchmarks += 1
                             continue
 
                         data["did_other_users_login"] = (
@@ -186,6 +182,11 @@ def main(data: dict, config: dict):
                                 "ncu_metrics": ncu_metrics,
                             }
                         )
+
+                        progress_bar.set_description(
+                            f"Memory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_benchmarks} skipped so far)\n"
+                        )
+                        progress_bar.update(1)
 
                         time.sleep(gpu.sleep_time)
 
