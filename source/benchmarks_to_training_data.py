@@ -100,8 +100,9 @@ def main(data: dict, config: dict):
             baselines = (
                 dict()
             )  # For each benchmark, contains the reference runtime and average power
-            total_benchmarks = len(os.listdir(EXECUTABLES_PATH))
+            total_compiled_benchmarks = len(os.listdir(EXECUTABLES_PATH))
             skipped_benchmarks = 0
+            skipped_clock_configs = 0
             for memory_clock in sorted(gpu.get_supported_memory_clocks(), reverse=True):
                 for graphics_clock in sorted(
                     gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
@@ -116,6 +117,7 @@ def main(data: dict, config: dict):
                             print(
                                 f"\nCouldn't change to memory_clk={memory_clock} and graphics_clock={graphics_clock}, skipping."
                             )
+                            skipped_clock_configs += 1
                             continue
                         else:
                             raise
@@ -184,7 +186,7 @@ def main(data: dict, config: dict):
                         )
 
                         progress_bar.set_description(
-                            f"Memory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_benchmarks} skipped so far)\n"
+                            f"Memory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped so far)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped so far)\n"
                         )
                         progress_bar.update(1)
 
