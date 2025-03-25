@@ -1,9 +1,20 @@
 import json
 import os
+import sys
 import time
 from datetime import datetime
 
 from config import config
+
+# The ncu_report C++ libraries throw the following error
+# when imported dynamically during BenchmarkMonitor initialization:
+#
+# terminate called after throwing an instance of 'std::bad_cast'
+# what():  std::bad_cast
+#
+# To prevent this, import them at the beginning
+sys.path.append(config["ncu_python_report_folder"])
+import ncu_report  # type: ignore
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.compiler import Compiler
 from my_lib.encoded_instruction import EncodedInstruction
@@ -63,7 +74,7 @@ def main(data: dict, config: dict):
                 nvml_sampling_frequency=config["nvml_sampling_freq"],
                 ncu_path=config["ncu_path"],
                 ncu_sections_folder=config["ncu_sections_folder"],
-                ncu_python_report_folder=config["ncu_python_report_folder"],
+                ncu_report_lib=ncu_report,
                 ncu_set=config["ncu_set"],
             )
 

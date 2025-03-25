@@ -4,7 +4,7 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from typing import Any
+from types import ModuleType
 
 import numpy as np
 
@@ -51,7 +51,7 @@ class BenchmarkMonitor:
         nvml_sampling_frequency: int,
         ncu_path: str,
         ncu_sections_folder: str,
-        ncu_python_report_folder: str,
+        ncu_report_lib: ModuleType,
         ncu_set: str,
     ) -> None:
 
@@ -79,9 +79,8 @@ class BenchmarkMonitor:
         self.__ncu_set = ncu_set
         """ The name of the set of metrics to collect using NCU. """
 
-        sys.path.append(ncu_python_report_folder)
-        self.__ncu_report = __import__("ncu_report")
-        """ The NCU python report interface """
+        self.__ncu_report = ncu_report_lib
+        """ The NCU python report module (passed via arguments as it needs to be imported first in the main scrip to avoid C++ libs problems) """
 
     ################################### Public methods ####################################
 
