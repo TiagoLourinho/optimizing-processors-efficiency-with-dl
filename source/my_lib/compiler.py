@@ -30,11 +30,31 @@ class Compiler:
     def compile_and_obtain_ptx(self):
         """Obtains the PTX and executable of all the benchmarks composed of only 1 file"""
 
-        # Define neccesary folders to dump the files
+        # Define necesary folders to dump the files
         bin_folder = Path(self.__benchmarks_folder) / ".." / "bin"
         ptx_folder = bin_folder / "ptx"
         executables_folder = bin_folder / "executables"
 
+        # Check if the folders exist and the benchmarks are compilled
+        ptx_files = list(ptx_folder.glob("*")) if ptx_folder.exists() else []
+        exe_files = (
+            list(executables_folder.glob("*")) if executables_folder.exists() else []
+        )
+
+        if (
+            ptx_folder.exists()
+            and executables_folder.exists()
+            and len(ptx_files) > 0
+            and len(exe_files) > 0
+            and len(ptx_files) == len(exe_files)
+        ):
+
+            print(
+                f"Skipping compilation as there are already {len(ptx_files)} benchmarks compilled. If compilation is desired, delete the bin folder to trigger it."
+            )
+            return
+
+        # Create folders if needed
         ptx_folder.mkdir(parents=True, exist_ok=True)
         executables_folder.mkdir(parents=True, exist_ok=True)
 
