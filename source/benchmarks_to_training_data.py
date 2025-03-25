@@ -106,9 +106,15 @@ def main(data: dict, config: dict):
                     gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
                     reverse=True,
                 ):
-
-                    gpu.memory_clk = memory_clock
-                    gpu.graphics_clk = graphics_clock
+                    try:
+                        gpu.memory_clk = memory_clock
+                        gpu.graphics_clk = graphics_clock
+                    except Exception as e:
+                        # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
+                        if "power/temperature limits" in str(e).lower():
+                            continue
+                        else:
+                            raise
 
                     for executable in os.listdir(EXECUTABLES_PATH):
                         progress_bar.update(1)
