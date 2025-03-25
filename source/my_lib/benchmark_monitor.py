@@ -46,7 +46,6 @@ class BenchmarkMonitor:
     def __init__(
         self,
         gpu: GPU,
-        nvcc_path: str,
         nvml_n_runs: str,
         nvml_sampling_frequency: int,
         ncu_path: str,

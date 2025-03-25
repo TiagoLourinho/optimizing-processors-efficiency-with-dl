@@ -19,8 +19,13 @@ class Compiler:
     ]
     """Flags used during compilation"""
 
-    def __init__(self, benchmarks_folder: str):
+    def __init__(self, nvcc_path: str, benchmarks_folder: str):
+
+        self.__nvcc_path: str = nvcc_path
+        """ The NVIDIA compiler path """
+
         self.__benchmarks_folder = benchmarks_folder
+        """ The folder containing the benchmarks repos """
 
     def compile_and_obtain_ptx(self):
         """Obtains the PTX and executable of all the benchmarks composed of only 1 file"""
@@ -56,7 +61,7 @@ class Compiler:
 
             # NVCC commands
             ptx_cmd = [
-                "nvcc",
+                self.__nvcc_path,
                 *self.NVCC_FLAGS,
                 "-ptx",
                 str(cu_file_path),
@@ -64,7 +69,7 @@ class Compiler:
                 str(ptx_file),
             ]
             exe_cmd = [
-                "nvcc",
+                self.__nvcc_path,
                 *self.NVCC_FLAGS,
                 str(cu_file_path),
                 "-o",

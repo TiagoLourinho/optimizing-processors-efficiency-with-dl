@@ -65,11 +65,13 @@ def main(data: dict, config: dict):
     # Init the GPU and compile the benchmark
     with GPU(sleep_time=config["gpu_sleep_time"]) as gpu:
         try:
-            compiler = Compiler(benchmarks_folder=config["benchmarks_folder"])
+            compiler = Compiler(
+                nvcc_path=config["nvcc_path"],
+                benchmarks_folder=config["benchmarks_folder"],
+            )
             ptx_parser = PTXParser()
             benchmark_monitor = BenchmarkMonitor(
                 gpu=gpu,
-                nvcc_path=config["nvcc_path"],
                 nvml_n_runs=config["nvml_n_runs"],
                 nvml_sampling_frequency=config["nvml_sampling_freq"],
                 ncu_path=config["ncu_path"],
