@@ -93,10 +93,6 @@ def main(data: dict, config: dict):
                     os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
                 )
 
-            progress_bar = tqdm(
-                desc="Collecting samples", unit="sample"
-            )  # Counts succefully collected samples only
-
             # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
             # Start by the higher frequencies so that the baselines can be collected
             baselines = (
@@ -129,6 +125,8 @@ def main(data: dict, config: dict):
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
 
+                        print(f"\nRunning {benchmark_name}...")
+
                         # Some benchmarks require extra arguments like files and etc that aren't provided, so:
                         # - Either the subprocess will return status 1 while running with NVML (CalledProcessError)
                         # - Or if it still returns status 0, NCU will produce a warning saying that no kernels were profilled
@@ -149,9 +147,7 @@ def main(data: dict, config: dict):
                             )
                         except (CalledProcessError, FileNotFoundError) as e:
                             # Delete the benchmark as it can't be profilled
-                            print(
-                                f"\nSkipping {benchmark_name} as it needs extra arguments. Error:\n{str(e)}"
-                            )
+                            print(f"\nSkipping {benchmark_name}:\n{str(e)}")
                             executable_path = os.path.join(
                                 EXECUTABLES_PATH, f"{benchmark_name}.out"
                             )
@@ -187,14 +183,11 @@ def main(data: dict, config: dict):
                             }
                         )
 
-                        progress_bar.set_description(
-                            f"Memory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped so far)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped so far)\n"
+                        print(
+                            f"\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data["training_data"])}"
                         )
-                        progress_bar.update(1)
 
                         time.sleep(gpu.sleep_time)
-
-            progress_bar.close()
 
             if data["did_other_users_login"]:
                 print(
