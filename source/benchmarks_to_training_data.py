@@ -15,6 +15,8 @@ from config import config
 #
 # To prevent this, import them at the beginning
 sys.path.append(config["ncu_python_report_folder"])
+from datetime import datetime
+
 import ncu_report  # type: ignore
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.compiler import Compiler
@@ -27,7 +29,6 @@ from my_lib.utils import (
     get_nvml_scaling_factors_and_update_baselines,
     validate_config,
 )
-from tqdm import tqdm
 
 # Set umask to 000 to allow full read, write, and execute for everyone
 # avoiding the normal user not being able to modify the files created
@@ -61,7 +62,8 @@ def main(data: dict, config: dict):
     # Collect cmd line arguments
     data["config"] = config
 
-    print(f"Starting to run the script at {datetime.now()}.")
+    start_time = datetime.now()
+    print("Script started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     # Init the GPU and compile the benchmark
     with GPU(sleep_time=config["gpu_sleep_time"]) as gpu:
@@ -183,8 +185,12 @@ def main(data: dict, config: dict):
                             }
                         )
 
+                        elapsed_time = datetime.now() - start_time
+                        hours, remainder = divmod(elapsed_time.total_seconds(), 3600)
+                        minutes, _ = divmod(remainder, 60)
+
                         print(
-                            f"\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
+                            f"\nElapsed time: {int(hours)} hours, {int(minutes)} minutes\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
                         )
 
                         time.sleep(gpu.sleep_time)

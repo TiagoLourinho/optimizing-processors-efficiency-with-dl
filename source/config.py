@@ -10,7 +10,7 @@ config = {
     ################################
     ########## GPU config ##########
     ################################
-    "gpu_sleep_time": 1,  # int [s] - The amount of time to sleep after changing GPU clocks speeds so the systems stabilizes.
+    "gpu_sleep_time": 0.25,  # float [s] - The amount of time to sleep after changing GPU clocks speeds so the systems stabilizes.
     #################################
     ########## NVML config ##########
     #################################
