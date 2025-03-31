@@ -184,7 +184,7 @@ def main(data: dict, config: dict):
                         )
 
                         print(
-                            f"\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data["training_data"])}"
+                            f"\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
                         )
 
                         time.sleep(gpu.sleep_time)
