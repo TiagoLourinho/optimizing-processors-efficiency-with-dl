@@ -185,12 +185,13 @@ def main(data: dict, config: dict):
                             }
                         )
 
-                        elapsed_time = datetime.now() - start_time
+                        now = datetime.now()
+                        elapsed_time = now - start_time
                         hours, remainder = divmod(elapsed_time.total_seconds(), 3600)
                         minutes, _ = divmod(remainder, 60)
 
                         print(
-                            f"\nElapsed time: {int(hours)} hours, {int(minutes)} minutes\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
+                            f"\nTime: {now.strftime("%Y-%m-%d %H:%M:%S")} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
                         )
 
                         time.sleep(gpu.sleep_time)
