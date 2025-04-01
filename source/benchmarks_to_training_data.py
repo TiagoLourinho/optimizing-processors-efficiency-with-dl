@@ -191,7 +191,7 @@ def main(data: dict, config: dict):
                         minutes, _ = divmod(remainder, 60)
 
                         print(
-                            f"\nTime: {now.strftime("%Y-%m-%d %H:%M:%S")} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
+                            f"\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
                         )
 
                         time.sleep(gpu.sleep_time)
