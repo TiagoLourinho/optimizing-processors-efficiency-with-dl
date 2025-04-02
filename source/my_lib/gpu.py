@@ -23,6 +23,12 @@ class GPUQueries(Enum):
     """ GPU utilization [%] """
 
 
+class GPUClockChangingError(Exception):
+    """Custom exception for when the driver doesn't let the GPU change frequendcies"""
+
+    pass
+
+
 class GPU:
     """Interface to query and manage the GPU"""
 
@@ -128,9 +134,7 @@ class GPU:
         # NVML returns for example 7001 MHz in the supported clocks,
         # but then the value returned by the query is just 7000 MHz
         if abs(self.graphics_clk - value) > 1:
-            raise ValueError(
-                f"It wasn't possible to set the graphics clock to {value} MHz probably due to power/temperature limits."
-            )
+            raise GPUClockChangingError()
 
         self.__is_graphics_clk_locked = True
 
@@ -154,9 +158,7 @@ class GPU:
         # NVML returns for example 7001 MHz in the supported clocks,
         # but then the value returned by the query is just 7000 MHz
         if abs(self.memory_clk - value) > 1:
-            raise ValueError(
-                f"It wasn't possible to set the memory clock to {value} MHz probably due to power/temperature limits."
-            )
+            raise GPUClockChangingError()
 
         self.__is_memory_clk_locked = True
 

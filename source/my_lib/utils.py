@@ -1,8 +1,49 @@
 import socket
 from datetime import datetime
+import numpy as np
 
 import cpuinfo
 import psutil
+
+
+def reduce_clocks_list(original_clocks: list[int], N: int, reverse: bool):
+    """
+    Given a list of clocks, returns a reduced list with the first and last item,
+    and then a "linspace" extracted from the original list until size N
+    """
+
+    original_clocks.sort()
+
+    if len(original_clocks) <= N:
+        return sorted(original_clocks, reverse=reverse)
+
+    # Create N points between first and last (inclusive)
+    target_values = np.linspace(
+        start=original_clocks[0],
+        stop=original_clocks[-1],
+        endpoint=True,
+        num=N,
+        dtype=int,
+    )
+
+    # For each target value, find the closest value in the original list
+    reduced = []
+    for target in target_values:
+        closest = min(original_clocks, key=lambda x: abs(x - target))
+        reduced.append(closest)
+
+    # Remove duplicates
+    reduced = list(set(reduced))
+
+    # Ensure at least N elements are returend by filling in from original if needed
+    while len(reduced) < N:
+        for val in original_clocks:
+            if val not in reduced:
+                reduced.append(val)
+                if len(reduced) == N:
+                    break
+
+    return sorted(reduced, reverse=reverse)
 
 
 def collect_system_info(gpu_name: str) -> dict:
@@ -57,6 +98,7 @@ def validate_config(config: dict):
         "ncu_path": get_key_config_dict(required=True, type=str),
         "ncu_sections_folder": get_key_config_dict(required=False, type=str),
         "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
+        "n_core_clocks": get_key_config_dict(required=True, type=int),
         "gpu_sleep_time": get_key_config_dict(required=True, type=float),
         "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
         "nvml_n_runs": get_key_config_dict(required=True, type=int),

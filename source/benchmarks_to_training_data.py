@@ -21,13 +21,14 @@ import ncu_report  # type: ignore
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.compiler import Compiler
 from my_lib.encoded_instruction import EncodedInstruction
-from my_lib.gpu import GPU
+from my_lib.gpu import GPU, GPUClockChangingError
 from my_lib.PTX_parser import PTXParser
 from my_lib.utils import (
     are_there_other_users,
     collect_system_info,
     get_nvml_scaling_factors_and_update_baselines,
     validate_config,
+    reduce_clocks_list,
 )
 
 # Set umask to 000 to allow full read, write, and execute for everyone
@@ -104,23 +105,26 @@ def main(data: dict, config: dict):
             skipped_benchmarks = 0
             skipped_clock_configs = 0
             for memory_clock in sorted(gpu.get_supported_memory_clocks(), reverse=True):
-                for graphics_clock in sorted(
+                for graphics_clock in reduce_clocks_list(
                     gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
+                    N=config["n_core_clocks"],
                     reverse=True,
                 ):
                     try:
                         gpu.memory_clk = memory_clock
                         gpu.graphics_clk = graphics_clock
-                    except Exception as e:
+
+                        # Sometimes the driver changes the graphics clock after changing the graphics clock
+                        assert gpu.memory_clk == memory_clock
+                        assert gpu.graphics_clk == graphics_clock
+                    except (GPUClockChangingError, AssertionError):
+
                         # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
-                        if "power/temperature limits" in str(e).lower():
-                            print(
-                                f"\nCouldn't change to memory_clk={memory_clock} and graphics_clock={graphics_clock}, skipping."
-                            )
-                            skipped_clock_configs += 1
-                            continue
-                        else:
-                            raise
+                        print(
+                            f"\nCouldn't change to memory_clk={memory_clock} and graphics_clock={graphics_clock}, skipping."
+                        )
+                        skipped_clock_configs += 1
+                        continue
 
                     for executable in os.listdir(EXECUTABLES_PATH):
 
