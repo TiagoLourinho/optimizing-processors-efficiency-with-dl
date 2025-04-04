@@ -60,7 +60,11 @@ def main():
 
     for epoch in range(epochs):
         total_loss = 0
+
+        # Avoid enconding the PTX so many times (as a lot of samples share the benchmark)
+        ptx_vec_cache = {}
         for batch in dataloader:
+            benchmark_name = batch["benchmark_name"]
             split_ptx = batch["split_ptx"]
             core_freq = batch["graphics_frequency"]
             mem_freq = batch["memory_frequency"]
@@ -74,10 +78,14 @@ def main():
             ptx_optimizer.zero_grad()
 
             # Encoding
-            ptx_vec = ptx_encoder(
-                split_ptx["categorical_kernels_parts"],
-                split_ptx["numerical_kernels_parts"],
-            )
+            if benchmark_name not in ptx_vec_cache:
+                ptx_vec = ptx_encoder(
+                    split_ptx["categorical_kernels_parts"],
+                    split_ptx["numerical_kernels_parts"],
+                )
+                ptx_vec_cache[benchmark_name] = ptx_vec
+            else:
+                ptx_vec = ptx_vec_cache[benchmark_name]
 
             # Predict power
             power_scaling_factor_prediction = power_predictor(

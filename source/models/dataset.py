@@ -35,6 +35,7 @@ class TrainingDataset(Dataset):
         ]
 
         return {
+            "benchmark_name": benchmark_name,
             "split_ptx": split_ptx,
             "graphics_frequency": core_freq,
             "memory_frequency": mem_freq,
