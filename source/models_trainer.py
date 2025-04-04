@@ -12,6 +12,9 @@ from tqdm import tqdm
 
 def main():
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
     # Loading data
     with open("training_data.json", "r") as f:
         data = json.load(f)
@@ -39,19 +42,21 @@ def main():
         numerical_dim=n_numerical_features,
         hidden_dim=lstm_hidden_dim,
         num_layers=lstm_layers,
-    )
+    ).to(device)
+
     power_predictor = NVMLScalingFactorsPredictor(
         ptx_dim=lstm_hidden_dim,
         ncu_dim=n_ncu_metrics,
         hidden_dim=fnn_hidden_dim,
         dropout_rate=dropout_rate,
-    )
+    ).to(device)
+
     runtime_predictor = NVMLScalingFactorsPredictor(
         ptx_dim=lstm_hidden_dim,
         ncu_dim=n_ncu_metrics,
         hidden_dim=fnn_hidden_dim,
         dropout_rate=dropout_rate,
-    )
+    ).to(device)
 
     # Optimizers and loss function
     ptx_optimizer = optim.Adam(ptx_encoder.parameters(), lr=learning_rate)
@@ -61,37 +66,34 @@ def main():
 
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}/{epochs}")
-
         total_loss = 0
-
-        # Avoid enconding the PTX so many times (as a lot of samples share the benchmark)
-        ptx_vec_cache = {}
 
         for batch in tqdm(dataloader, desc="Training", leave=False):
             benchmark_name = batch["benchmark_name"]
             split_ptx = batch["split_ptx"]
-            core_freq = batch["graphics_frequency"]
-            mem_freq = batch["memory_frequency"]
-            ncu_metrics = batch["ncu_metrics"]
-            power_scaling_factor_gold = batch["power_scaling_factor"]
-            runtime_scaling_factor_gold = batch["runtime_scaling_factor"]
+
+            core_freq = batch["graphics_frequency"].to(device)
+            mem_freq = batch["memory_frequency"].to(device)
+            ncu_metrics = batch["ncu_metrics"].to(device)
+            power_scaling_factor_gold = batch["power_scaling_factor"].to(device)
+            runtime_scaling_factor_gold = batch["runtime_scaling_factor"].to(device)
 
             # Reset
             runtime_optimizer.zero_grad()
             power_optimizer.zero_grad()
             ptx_optimizer.zero_grad()
 
-            # Encoding
-            if benchmark_name not in ptx_vec_cache:
-                ptx_vec = ptx_encoder(
-                    split_ptx["categorical_kernels_parts"],
-                    split_ptx["numerical_kernels_parts"],
-                )
-                ptx_vec_cache[benchmark_name] = ptx_vec
-            else:
-                ptx_vec = ptx_vec_cache[benchmark_name]
+            # Encode PTX
 
-            # Predict power
+            categorical_parts = [
+                tensor.to(device) for tensor in split_ptx["categorical_kernels_parts"]
+            ]
+            numerical_parts = [
+                tensor.to(device) for tensor in split_ptx["numerical_kernels_parts"]
+            ]
+            ptx_vec = ptx_encoder(categorical_parts, numerical_parts)
+
+            # Predict and compute loss
             power_scaling_factor_prediction = power_predictor(
                 ptx_vec, core_freq, mem_freq, ncu_metrics
             )
@@ -99,7 +101,6 @@ def main():
                 power_scaling_factor_prediction, power_scaling_factor_gold
             )
 
-            # Predict runtime
             runtime_scaling_factor_prediction = runtime_predictor(
                 ptx_vec, core_freq, mem_freq, ncu_metrics
             )
@@ -107,11 +108,11 @@ def main():
                 runtime_scaling_factor_prediction, runtime_scaling_factor_gold
             )
 
-            # Total loss calculation
+            # Total loss
             loss = power_loss_weight * power_loss + runtime_loss_weight * runtime_loss
             total_loss += loss.item()
 
-            # Backpropagate
+            # Backpropagation
             loss.backward()
             ptx_optimizer.step()
             power_optimizer.step()
@@ -119,7 +120,7 @@ def main():
 
         print(f"Loss: {total_loss:.4f}")
 
-    # Save trained models
+    # Save models
     torch.save(ptx_encoder.state_dict(), "ptx_encoder.pth")
     torch.save(power_predictor.state_dict(), "power_predictor.pth")
     torch.save(runtime_predictor.state_dict(), "runtime_predictor.pth")
