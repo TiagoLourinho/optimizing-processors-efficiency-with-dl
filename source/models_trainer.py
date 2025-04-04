@@ -7,6 +7,7 @@ from models.dataset import TrainingDataset
 from models.predictor import NVMLScalingFactorsPredictor
 from models.ptx_encoder import PTXEncoder
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 def main():
@@ -27,7 +28,7 @@ def main():
     fnn_hidden_dim = 128
     dropout_rate = 0.3
     learning_rate = 0.001
-    epochs = 10
+    epochs = 100
     runtime_loss_weight = 1
     power_loss_weight = 1
 
@@ -59,11 +60,14 @@ def main():
     criterion = nn.MSELoss()
 
     for epoch in range(epochs):
+        print(f"Epoch {epoch + 1}/{epochs}")
+
         total_loss = 0
 
         # Avoid enconding the PTX so many times (as a lot of samples share the benchmark)
         ptx_vec_cache = {}
-        for batch in dataloader:
+
+        for batch in tqdm(dataloader, desc="Training", leave=False):
             benchmark_name = batch["benchmark_name"]
             split_ptx = batch["split_ptx"]
             core_freq = batch["graphics_frequency"]
@@ -113,7 +117,7 @@ def main():
             power_optimizer.step()
             runtime_optimizer.step()
 
-        print(f"Epoch {epoch+1}/{epochs} - Loss: {total_loss:.4f}")
+        print(f"Loss: {total_loss:.4f}")
 
     # Save trained models
     torch.save(ptx_encoder.state_dict(), "ptx_encoder.pth")
