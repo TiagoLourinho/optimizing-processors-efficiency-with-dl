@@ -1,4 +1,5 @@
 import json
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -64,6 +65,9 @@ def main():
     runtime_optimizer = optim.Adam(runtime_predictor.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
 
+    # Plot later
+    loss_values = []
+
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}/{epochs}")
         total_loss = 0
@@ -84,7 +88,6 @@ def main():
             ptx_optimizer.zero_grad()
 
             # Encode PTX
-
             categorical_parts = [
                 tensor.to(device) for tensor in split_ptx["categorical_kernels_parts"]
             ]
@@ -118,7 +121,9 @@ def main():
             power_optimizer.step()
             runtime_optimizer.step()
 
-        print(f"Loss: {total_loss:.4f}")
+        average_loss = total_loss / len(dataloader)
+        loss_values.append(average_loss)
+        print(f"Loss: {average_loss:.4f}")
 
     # Save models
     torch.save(ptx_encoder.state_dict(), "ptx_encoder.pth")
@@ -126,6 +131,16 @@ def main():
     torch.save(runtime_predictor.state_dict(), "runtime_predictor.pth")
 
     print("\nModels saved successfully!")
+
+    # Plot and save loss curve
+    plt.figure()
+    plt.plot(loss_values, label="Training Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training Loss Over Epochs")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("training_loss_curve.png")
 
 
 if __name__ == "__main__":
