@@ -1,7 +1,5 @@
 name: master_thesis_env
 channels:
-  - pytorch
-  - nvidia
   - conda-forge
   - defaults
 dependencies:
@@ -11,8 +9,10 @@ dependencies:
   - psutil
   - py-cpuinfo
   - numpy
-  - pytorch
-  - torchvision
-  - torchaudio
-  - cudatoolkit  
+  - pip
   - matplotlib
+  - pip: # Use CUDA 11.8 for better compatibility on INESC Machines
+      - torch==2.5.1+cu118
+      - torchvision==0.20.1+cu118
+      - torchaudio==2.5.1+cu118
+      - --extra-index-url https://download.pytorch.org/whl/cu118
