@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 
 # Hyperparameters
-seed = 42
+seed = 1
 train_percent = 0.8
 batch_size = None
 
