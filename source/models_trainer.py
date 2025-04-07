@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 # Hyperparameters
 seed = 1
-train_percent = 0.8
+train_percent = 0.9
 batch_size = None
 
 categorical_embedding_dim = 16
@@ -23,7 +23,7 @@ lstm_layers = 1
 fnn_hidden_dim = 128
 dropout_rate = 0.3
 learning_rate = 0.001
-epochs = 100
+epochs = 20
 runtime_loss_weight = 1
 power_loss_weight = 1
 
