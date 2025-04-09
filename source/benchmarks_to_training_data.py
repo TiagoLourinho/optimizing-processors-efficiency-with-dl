@@ -221,4 +221,4 @@ def main(data: dict, config: dict):
 
 
 if __name__ == "__main__":
-    main(data=data, config=config)
+    main(data=data, config=config["benchmarks_to_training_data"])

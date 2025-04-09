@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from config import config
 from models.dataset import TrainingDataset
 from models.predictor import NVMLScalingFactorsPredictor
 from models.ptx_encoder import PTXEncoder
@@ -12,27 +13,11 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 
-# Hyperparameters
-seed = 1
-train_percent = 0.9
-batch_size = None
-
-categorical_embedding_dim = 16
-lstm_hidden_dim = 128
-lstm_layers = 1
-fnn_hidden_dim = 128
-dropout_rate = 0.3
-learning_rate = 0.001
-epochs = 20
-runtime_loss_weight = 1
-power_loss_weight = 1
-
-
-def main():
+def main(config: dict):
     # Set random seed for reproducibility
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    random.seed(config["random_seed"])
+    torch.manual_seed(config["random_seed"])
+    torch.cuda.manual_seed_all(config["random_seed"])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -46,15 +31,15 @@ def main():
     dataset_size = len(full_dataset)
     indices = list(range(dataset_size))
     random.shuffle(indices)
-    split_index = int(train_percent * dataset_size)
+    split_index = int(config["train_percent"] * dataset_size)
     train_indices = indices[:split_index]
     test_indices = indices[split_index:]
 
     train_dataset = Subset(full_dataset, train_indices)
     test_dataset = Subset(full_dataset, test_indices)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
 
     categorical_sizes = data["models_info"]["categorical_sizes"]
     n_ncu_metrics = data["models_info"]["n_ncu_metrics"]
@@ -63,37 +48,37 @@ def main():
     # Initialize models
     ptx_encoder = PTXEncoder(
         vocab_sizes=categorical_sizes,
-        embedding_dim=categorical_embedding_dim,
+        embedding_dim=config["categorical_embedding_dim"],
         numerical_dim=n_numerical_features,
-        hidden_dim=lstm_hidden_dim,
-        num_layers=lstm_layers,
+        hidden_dim=config["lstm_hidden_dim"],
+        num_layers=config["lstm_layers"],
     ).to(device)
 
     power_predictor = NVMLScalingFactorsPredictor(
-        ptx_dim=lstm_hidden_dim,
+        ptx_dim=config["lstm_hidden_dim"],
         ncu_dim=n_ncu_metrics,
-        hidden_dim=fnn_hidden_dim,
-        dropout_rate=dropout_rate,
+        hidden_dim=config["fnn_hidden_dim"],
+        dropout_rate=config["dropout_rate"],
     ).to(device)
 
     runtime_predictor = NVMLScalingFactorsPredictor(
-        ptx_dim=lstm_hidden_dim,
+        ptx_dim=config["lstm_hidden_dim"],
         ncu_dim=n_ncu_metrics,
-        hidden_dim=fnn_hidden_dim,
-        dropout_rate=dropout_rate,
+        hidden_dim=config["fnn_hidden_dim"],
+        dropout_rate=config["dropout_rate"],
     ).to(device)
 
     # Optimizers and loss function
-    ptx_optimizer = optim.Adam(ptx_encoder.parameters(), lr=learning_rate)
-    power_optimizer = optim.Adam(power_predictor.parameters(), lr=learning_rate)
-    runtime_optimizer = optim.Adam(runtime_predictor.parameters(), lr=learning_rate)
+    ptx_optimizer = optim.Adam(ptx_encoder.parameters(), lr=config["learning_rate"])
+    power_optimizer = optim.Adam(power_predictor.parameters(), lr=config["learning_rate"])
+    runtime_optimizer = optim.Adam(runtime_predictor.parameters(), lr=config["learning_rate"])
     criterion = nn.MSELoss()
 
     # Plot later
     loss_values = []
 
-    for epoch in range(epochs):
-        print(f"Epoch {epoch + 1}/{epochs}")
+    for epoch in range(config["epochs"]):
+        print(f"Epoch {epoch + 1}/{config["epochs"]}")
         total_loss = 0
 
         for batch in tqdm(train_loader, desc="Training", leave=False):
@@ -136,7 +121,7 @@ def main():
             )
 
             # Total loss
-            loss = power_loss_weight * power_loss + runtime_loss_weight * runtime_loss
+            loss = config["power_loss_weight"] * power_loss + config["runtime_loss_weight"] * runtime_loss
             total_loss += loss.item()
 
             # Backpropagation
@@ -198,7 +183,7 @@ def main():
             runtime_loss = criterion(runtime_pred, runtime_gold)
 
             test_loss += (
-                power_loss_weight * power_loss + runtime_loss_weight * runtime_loss
+                config["power_loss_weight"] * power_loss + config["runtime_loss_weight"] * runtime_loss
             ).item()
 
     avg_test_loss = test_loss / len(test_loader)
@@ -206,4 +191,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(config=config["models_trainer"])
