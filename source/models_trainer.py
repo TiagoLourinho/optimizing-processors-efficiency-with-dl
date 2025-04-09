@@ -13,6 +13,38 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 
+def forward_batch(
+    config: dict,
+    batch: dict,
+    device,
+    ptx_encoder: PTXEncoder,
+    power_predictor: NVMLScalingFactorsPredictor,
+    runtime_predictor: NVMLScalingFactorsPredictor,
+    criterion,
+):
+    split_ptx = batch["split_ptx"]
+    core_freq = batch["graphics_frequency"].to(device)
+    mem_freq = batch["memory_frequency"].to(device)
+    ncu_metrics = batch["ncu_metrics"].to(device)
+    power_gold = batch["power_scaling_factor"].to(device)
+    runtime_gold = batch["runtime_scaling_factor"].to(device)
+
+    categorical_parts = [t.to(device) for t in split_ptx["categorical_kernels_parts"]]
+    numerical_parts = [t.to(device) for t in split_ptx["numerical_kernels_parts"]]
+    ptx_vec = ptx_encoder(categorical_parts, numerical_parts)
+
+    power_pred = power_predictor(ptx_vec, core_freq, mem_freq, ncu_metrics)
+    runtime_pred = runtime_predictor(ptx_vec, core_freq, mem_freq, ncu_metrics)
+
+    power_loss = criterion(power_pred, power_gold)
+    runtime_loss = criterion(runtime_pred, runtime_gold)
+
+    return (
+        config["power_loss_weight"] * power_loss
+        + config["runtime_loss_weight"] * runtime_loss
+    )
+
+
 def main(config: dict):
     # Set random seed for reproducibility
     random.seed(config["random_seed"])
@@ -38,8 +70,12 @@ def main(config: dict):
     train_dataset = Subset(full_dataset, train_indices)
     test_dataset = Subset(full_dataset, test_indices)
 
-    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, batch_size=config["batch_size"], shuffle=False
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=config["batch_size"], shuffle=False
+    )
 
     categorical_sizes = data["models_info"]["categorical_sizes"]
     n_ncu_metrics = data["models_info"]["n_ncu_metrics"]
@@ -70,58 +106,36 @@ def main(config: dict):
 
     # Optimizers and loss function
     ptx_optimizer = optim.Adam(ptx_encoder.parameters(), lr=config["learning_rate"])
-    power_optimizer = optim.Adam(power_predictor.parameters(), lr=config["learning_rate"])
-    runtime_optimizer = optim.Adam(runtime_predictor.parameters(), lr=config["learning_rate"])
+    power_optimizer = optim.Adam(
+        power_predictor.parameters(), lr=config["learning_rate"]
+    )
+    runtime_optimizer = optim.Adam(
+        runtime_predictor.parameters(), lr=config["learning_rate"]
+    )
     criterion = nn.MSELoss()
 
     # Plot later
     loss_values = []
 
     for epoch in range(config["epochs"]):
-        print(f"Epoch {epoch + 1}/{config["epochs"]}")
+        print(f'Epoch {epoch + 1}/{config["epochs"]}')
         total_loss = 0
 
         for batch in tqdm(train_loader, desc="Training", leave=False):
-            benchmark_name = batch["benchmark_name"]
-            split_ptx = batch["split_ptx"]
-
-            core_freq = batch["graphics_frequency"].to(device)
-            mem_freq = batch["memory_frequency"].to(device)
-            ncu_metrics = batch["ncu_metrics"].to(device)
-            power_scaling_factor_gold = batch["power_scaling_factor"].to(device)
-            runtime_scaling_factor_gold = batch["runtime_scaling_factor"].to(device)
-
             # Reset
             runtime_optimizer.zero_grad()
             power_optimizer.zero_grad()
             ptx_optimizer.zero_grad()
 
-            # Encode PTX
-            categorical_parts = [
-                tensor.to(device) for tensor in split_ptx["categorical_kernels_parts"]
-            ]
-            numerical_parts = [
-                tensor.to(device) for tensor in split_ptx["numerical_kernels_parts"]
-            ]
-            ptx_vec = ptx_encoder(categorical_parts, numerical_parts)
-
-            # Predict and compute loss
-            power_scaling_factor_prediction = power_predictor(
-                ptx_vec, core_freq, mem_freq, ncu_metrics
+            loss = forward_batch(
+                config=config,
+                batch=batch,
+                device=device,
+                ptx_encoder=ptx_encoder,
+                power_predictor=power_predictor,
+                runtime_predictor=runtime_predictor,
+                criterion=criterion,
             )
-            power_loss = criterion(
-                power_scaling_factor_prediction, power_scaling_factor_gold
-            )
-
-            runtime_scaling_factor_prediction = runtime_predictor(
-                ptx_vec, core_freq, mem_freq, ncu_metrics
-            )
-            runtime_loss = criterion(
-                runtime_scaling_factor_prediction, runtime_scaling_factor_gold
-            )
-
-            # Total loss
-            loss = config["power_loss_weight"] * power_loss + config["runtime_loss_weight"] * runtime_loss
             total_loss += loss.item()
 
             # Backpropagation
@@ -160,30 +174,15 @@ def main(config: dict):
 
     with torch.no_grad():
         for batch in tqdm(test_loader, desc="Testing", leave=False):
-            split_ptx = batch["split_ptx"]
 
-            core_freq = batch["graphics_frequency"].to(device)
-            mem_freq = batch["memory_frequency"].to(device)
-            ncu_metrics = batch["ncu_metrics"].to(device)
-            power_gold = batch["power_scaling_factor"].to(device)
-            runtime_gold = batch["runtime_scaling_factor"].to(device)
-
-            categorical_parts = [
-                t.to(device) for t in split_ptx["categorical_kernels_parts"]
-            ]
-            numerical_parts = [
-                t.to(device) for t in split_ptx["numerical_kernels_parts"]
-            ]
-            ptx_vec = ptx_encoder(categorical_parts, numerical_parts)
-
-            power_pred = power_predictor(ptx_vec, core_freq, mem_freq, ncu_metrics)
-            runtime_pred = runtime_predictor(ptx_vec, core_freq, mem_freq, ncu_metrics)
-
-            power_loss = criterion(power_pred, power_gold)
-            runtime_loss = criterion(runtime_pred, runtime_gold)
-
-            test_loss += (
-                config["power_loss_weight"] * power_loss + config["runtime_loss_weight"] * runtime_loss
+            test_loss += forward_batch(
+                config=config,
+                batch=batch,
+                device=device,
+                ptx_encoder=ptx_encoder,
+                power_predictor=power_predictor,
+                runtime_predictor=runtime_predictor,
+                criterion=criterion,
             ).item()
 
     avg_test_loss = test_loss / len(test_loader)
