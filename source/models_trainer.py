@@ -1,3 +1,4 @@
+import copy
 import json
 import random
 
@@ -121,6 +122,13 @@ def main(config: dict):
     test_loss_values = []
     test_r2_values = []
 
+    # To restore best model states
+    best_test_r2 = float("-inf")
+    best_epoch = None
+    best_ptx_encoder_state = None
+    best_power_predictor_state = None
+    best_runtime_predictor_state = None
+
     for epoch in range(config["epochs"]):
         print(f'Epoch {epoch + 1}/{config["epochs"]}')
 
@@ -204,12 +212,20 @@ def main(config: dict):
         )
         print(f"Test R² score: {test_r2}")
 
-    # Save models
-    torch.save(ptx_encoder.state_dict(), "ptx_encoder.pth")
-    torch.save(power_predictor.state_dict(), "power_predictor.pth")
-    torch.save(runtime_predictor.state_dict(), "runtime_predictor.pth")
+        # Save best performing epoch state
+        if test_r2 > best_test_r2:
+            best_test_r2 = test_r2
+            best_epoch = epoch
+            best_ptx_encoder_state = copy.deepcopy(ptx_encoder.state_dict())
+            best_power_predictor_state = copy.deepcopy(power_predictor.state_dict())
+            best_runtime_predictor_state = copy.deepcopy(runtime_predictor.state_dict())
 
-    print("\nModels saved successfully!")
+    # Save models
+    torch.save(best_ptx_encoder_state, "ptx_encoder.pth")
+    torch.save(best_power_predictor_state, "power_predictor.pth")
+    torch.save(best_runtime_predictor_state, "runtime_predictor.pth")
+
+    print(f"\nModels from best epoch {best_epoch} saved successfully!")
 
 
 if __name__ == "__main__":
