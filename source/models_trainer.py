@@ -200,10 +200,10 @@ def main(config: dict):
 
                 test_loss += loss.item()
 
-                all_power_preds.append(power_pred)
-                all_runtime_preds.append(runtime_pred)
-                all_power_golds.append(power_gold)
-                all_runtime_golds.append(runtime_gold)
+                all_power_preds.append(power_pred.cpu())
+                all_runtime_preds.append(runtime_pred.cpu())
+                all_power_golds.append(power_gold.cpu())
+                all_runtime_golds.append(runtime_gold.cpu())
 
         test_avg_loss = test_loss / len(test_loader)
         test_loss_values.append(test_avg_loss)
