@@ -1,7 +1,6 @@
 import json
 import random
 
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -154,16 +153,6 @@ def main(config: dict):
     torch.save(runtime_predictor.state_dict(), "runtime_predictor.pth")
 
     print("\nModels saved successfully!")
-
-    # Plot and save loss curve
-    plt.figure()
-    plt.plot(loss_values, label="Training Loss")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.title("Training Loss Over Epochs")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig("training_loss_curve.png")
 
     # Evaluate on test set
     print("\nEvaluating on test set...")
