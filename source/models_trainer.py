@@ -9,6 +9,7 @@ from config import config
 from models.dataset import TrainingDataset
 from models.predictor import NVMLScalingFactorsPredictor
 from models.ptx_encoder import PTXEncoder
+from my_lib.utils import collect_system_info
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
@@ -56,6 +57,12 @@ def main(config: dict):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+
+    gpu_name = None
+    if torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(torch.cuda.current_device())
+
+    system_info = collect_system_info(gpu_name=gpu_name)
 
     # Loading data
     with open("training_data.json", "r") as f:
@@ -225,7 +232,27 @@ def main(config: dict):
     torch.save(best_power_predictor_state, "power_predictor.pth")
     torch.save(best_runtime_predictor_state, "runtime_predictor.pth")
 
-    print(f"\nModels from best epoch {best_epoch} saved successfully!")
+    print(f"\nModels from best epoch {best_epoch+1} saved successfully!")
+
+    results_summary = "models_training_summary.json"
+    with open(results_summary, "w") as json_file:
+        summary = {
+            "config": config,
+            "system_info": system_info,
+            "best_epoch_results": {
+                "best_epoch": best_epoch + 1,  # Starts at 0
+                "best_train_loss": train_loss_values[best_epoch],
+                "best_test_loss": test_loss_values[best_epoch],
+                "best_test_r2": test_r2_values[best_epoch],
+            },
+            "values_per_epoch": {
+                "train_loss": train_loss_values,
+                "test_loss": test_loss_values,
+                "test_r2": test_r2_values,
+            },
+        }
+        json.dump(summary, json_file, indent=4)
+        print(f"\nExported results summary to {results_summary}.")
 
 
 if __name__ == "__main__":
