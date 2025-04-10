@@ -8,6 +8,7 @@ from config import config
 from models.dataset import TrainingDataset
 from models.predictor import NVMLScalingFactorsPredictor
 from models.ptx_encoder import PTXEncoder
+from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
@@ -38,10 +39,12 @@ def forward_batch(
     power_loss = criterion(power_pred, power_gold)
     runtime_loss = criterion(runtime_pred, runtime_gold)
 
-    return (
+    loss = (
         config["power_loss_weight"] * power_loss
         + config["runtime_loss_weight"] * runtime_loss
     )
+
+    return loss, power_pred, runtime_pred, power_gold, runtime_gold
 
 
 def main(config: dict):
@@ -116,6 +119,7 @@ def main(config: dict):
     # Store info for the results JSON
     train_loss_values = []
     test_loss_values = []
+    test_r2_values = []
 
     for epoch in range(config["epochs"]):
         print(f'Epoch {epoch + 1}/{config["epochs"]}')
@@ -133,7 +137,7 @@ def main(config: dict):
             power_optimizer.zero_grad()
             ptx_optimizer.zero_grad()
 
-            loss = forward_batch(
+            loss, *_ = forward_batch(
                 config=config,
                 batch=batch,
                 device=device,
@@ -160,24 +164,45 @@ def main(config: dict):
 
         test_loss = 0
 
+        # For R² calculation
+        all_power_preds, all_runtime_preds = [], []
+        all_power_golds, all_runtime_golds = [], []
+
         with torch.no_grad():
             for batch in tqdm(test_loader, desc="Testing", leave=False):
-                test_loss += forward_batch(
-                    config=config,
-                    batch=batch,
-                    device=device,
-                    ptx_encoder=ptx_encoder,
-                    power_predictor=power_predictor,
-                    runtime_predictor=runtime_predictor,
-                    criterion=criterion,
-                ).item()
+
+                loss, power_pred, runtime_pred, power_gold, runtime_gold = (
+                    forward_batch(
+                        config=config,
+                        batch=batch,
+                        device=device,
+                        ptx_encoder=ptx_encoder,
+                        power_predictor=power_predictor,
+                        runtime_predictor=runtime_predictor,
+                        criterion=criterion,
+                    )
+                )
+
+                test_loss += loss.item()
+
+                all_power_preds.append(power_pred)
+                all_runtime_preds.append(runtime_pred)
+                all_power_golds.append(power_gold)
+                all_runtime_golds.append(runtime_gold)
 
         test_avg_loss = test_loss / len(test_loader)
         test_loss_values.append(test_avg_loss)
 
+        test_r2 = (
+            r2_score(all_power_golds, all_power_preds)
+            + r2_score(all_runtime_golds, all_runtime_preds)
+        ) / 2
+        test_r2_values.append(test_r2)
+
         print(
-            f"Average losses:\nTrain: {train_avg_loss:.4f}\t Test: {test_avg_loss:.4f}"
+            f"Average losses: Train: {train_avg_loss:.4f}\t Test: {test_avg_loss:.4f}"
         )
+        print(f"Test R² score: {test_r2}")
 
     # Save models
     torch.save(ptx_encoder.state_dict(), "ptx_encoder.pth")
