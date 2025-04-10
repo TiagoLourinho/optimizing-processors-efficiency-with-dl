@@ -113,15 +113,22 @@ def main(config: dict):
     )
     criterion = nn.MSELoss()
 
-    # Plot later
-    loss_values = []
+    # Store info for the results JSON
+    train_loss_values = []
+    test_loss_values = []
 
     for epoch in range(config["epochs"]):
         print(f'Epoch {epoch + 1}/{config["epochs"]}')
-        total_loss = 0
+
+        ########## Train ##########
+
+        ptx_encoder.train()
+        power_predictor.train()
+        runtime_predictor.train()
+
+        train_loss = 0
 
         for batch in tqdm(train_loader, desc="Training", leave=False):
-            # Reset
             runtime_optimizer.zero_grad()
             power_optimizer.zero_grad()
             ptx_optimizer.zero_grad()
@@ -135,17 +142,42 @@ def main(config: dict):
                 runtime_predictor=runtime_predictor,
                 criterion=criterion,
             )
-            total_loss += loss.item()
+            train_loss += loss.item()
 
-            # Backpropagation
             loss.backward()
             ptx_optimizer.step()
             power_optimizer.step()
             runtime_optimizer.step()
 
-        average_loss = total_loss / len(train_loader)
-        loss_values.append(average_loss)
-        print(f"Average Train Loss: {average_loss:.4f}")
+        train_avg_loss = train_loss / len(train_loader)
+        train_loss_values.append(train_avg_loss)
+
+        ########## Evaluate on test set ##########
+
+        ptx_encoder.eval()
+        power_predictor.eval()
+        runtime_predictor.eval()
+
+        test_loss = 0
+
+        with torch.no_grad():
+            for batch in tqdm(test_loader, desc="Testing", leave=False):
+                test_loss += forward_batch(
+                    config=config,
+                    batch=batch,
+                    device=device,
+                    ptx_encoder=ptx_encoder,
+                    power_predictor=power_predictor,
+                    runtime_predictor=runtime_predictor,
+                    criterion=criterion,
+                ).item()
+
+        test_avg_loss = test_loss / len(test_loader)
+        test_loss_values.append(test_avg_loss)
+
+        print(
+            f"Average losses:\nTrain: {train_avg_loss:.4f}\t Test: {test_avg_loss:.4f}"
+        )
 
     # Save models
     torch.save(ptx_encoder.state_dict(), "ptx_encoder.pth")
@@ -153,29 +185,6 @@ def main(config: dict):
     torch.save(runtime_predictor.state_dict(), "runtime_predictor.pth")
 
     print("\nModels saved successfully!")
-
-    # Evaluate on test set
-    print("\nEvaluating on test set...")
-    ptx_encoder.eval()
-    power_predictor.eval()
-    runtime_predictor.eval()
-    test_loss = 0
-
-    with torch.no_grad():
-        for batch in tqdm(test_loader, desc="Testing", leave=False):
-
-            test_loss += forward_batch(
-                config=config,
-                batch=batch,
-                device=device,
-                ptx_encoder=ptx_encoder,
-                power_predictor=power_predictor,
-                runtime_predictor=runtime_predictor,
-                criterion=criterion,
-            ).item()
-
-    avg_test_loss = test_loss / len(test_loader)
-    print(f"Average Test Loss: {avg_test_loss:.4f}")
 
 
 if __name__ == "__main__":
