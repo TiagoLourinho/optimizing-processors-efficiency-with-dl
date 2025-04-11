@@ -28,8 +28,8 @@ config = {
         ######################################
         ########## Training Related ##########
         ######################################
-        "random_seed": 1,  # int - The seed used for random things
-        "epochs": 20,  # int - Number of epochs to train
+        "random_seed": 42,  # int - The seed used for random things
+        "epochs": 50,  # int - Number of epochs to train
         "train_percent": 0.9,  # float - Percent of data to use to train (rest is test)
         "batch_size": None,  # int | None - The batch size (or None for no batch)
         "learning_rate": 0.001,  # float - The optimizer learning rate
