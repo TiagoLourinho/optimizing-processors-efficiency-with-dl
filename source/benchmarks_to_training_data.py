@@ -6,6 +6,7 @@ from datetime import datetime
 from subprocess import CalledProcessError
 
 from config import config
+from dotenv import load_dotenv
 
 # The ncu_report C++ libraries throw the following error
 # when imported dynamically during BenchmarkMonitor initialization:
@@ -27,8 +28,8 @@ from my_lib.utils import (
     are_there_other_users,
     collect_system_info,
     get_nvml_scaling_factors_and_update_baselines,
-    validate_config,
     reduce_clocks_list,
+    validate_config,
 )
 
 # Set umask to 000 to allow full read, write, and execute for everyone
@@ -221,4 +222,16 @@ def main(data: dict, config: dict):
 
 
 if __name__ == "__main__":
+    load_dotenv()
+
+    paths = {
+        "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER"),
+        "nvcc_path": os.getenv("NVCC_PATH"),
+        "ncu_path": os.getenv("NCU_PATH"),
+        "ncu_sections_folder": os.getenv("NCU_SECTIONS_FOLDER"),
+        "ncu_python_report_folder": os.getenv("NCU_PYTHON_REPORT_FOLDER"),
+    }
+
+    config["benchmarks_to_training_data"].update(paths)
+
     main(data=data, config=config["benchmarks_to_training_data"])
