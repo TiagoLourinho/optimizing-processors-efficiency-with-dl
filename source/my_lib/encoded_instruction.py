@@ -120,7 +120,7 @@ class EncodedInstruction:
     closest_dependency: int
     """ 
     Identifies the offset to the closest instruction that wrote on a register that this instruction reads 
-    (-1 for the previous instruction, -2 for two before, etc, -inf for no dependencies) 
+    (-1 for the previous instruction, -2 for two before, etc, 0 for no dependencies) 
     """
 
     dependecy_type: DependencyType

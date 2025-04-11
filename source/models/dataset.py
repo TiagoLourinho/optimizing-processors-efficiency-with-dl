@@ -83,7 +83,7 @@ class TrainingDataset(Dataset):
                     "numerical": [
                         0,
                         0,
-                        -Infinity,
+                        0,
                         0,
                         0
                     ]
@@ -101,7 +101,7 @@ class TrainingDataset(Dataset):
                     "numerical": [
                         1,
                         1,
-                        -Infinity,
+                        0,
                         0,
                         0
                     ]
@@ -117,7 +117,7 @@ class TrainingDataset(Dataset):
                     "numerical": [
                         1,
                         1,
-                        -Infinity,
+                        0,
                         0,
                         0
                     ]
@@ -139,11 +139,11 @@ class TrainingDataset(Dataset):
                 ],
                 "numerical_kernels_parts": [
                     torch.tensor([
-                        [0, 0, float('-inf'), 0, 0]
+                        [0, 0, 0, 0, 0]
                     ], dtype=torch.float32),  # Shape: (1, 5) for _Z5emptyv
                     torch.tensor([
-                        [1, 1, float('-inf'), 0, 0],
-                        [1, 1, float('-inf'), 0, 0]
+                        [1, 1, 0, 0, 0],
+                        [1, 1, 0, 0, 0]
                     ], dtype=torch.float32)  # Shape: (2, 5) for _Z5delayx
                 ]
             }

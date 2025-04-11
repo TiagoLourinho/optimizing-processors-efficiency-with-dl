@@ -422,10 +422,9 @@ class PTXParser:
             if operand.startswith("[") and operand.endswith("]"):
                 read_operands.append(operand[1 : operand.find("+")])
 
-        # Check when the operands where last written:
-        # If the previous instruction wrote to one of the registers this instruction reads,
-        # then the offset is -1, so look for the max starting at -inf (no dependecy)
-        max_offset = -1e30  # Instead of float(-inf) for better numerical stability
+        # Check when the operands were last written:
+        # If the previous instruction wrote to one of the registers this instruction reads then the offset is -1, etc...
+        max_offset = None
         dependency_type = DependencyType.NO_DEPENDENCY
         for operand in read_operands:
 
@@ -441,7 +440,8 @@ class PTXParser:
                     instruction_that_wrote.instruction_index - instruction_index
                 )
 
-                if neg_offset > max_offset:
+                # Look for the max (closest) offset
+                if max_offset is None or neg_offset > max_offset:
                     max_offset = neg_offset
                     dependency_type = (
                         DependencyType.MEMORY
@@ -461,7 +461,9 @@ class PTXParser:
             data_type=instruction_data_type,
             written_operands=written_operands,
             read_operands=read_operands,
-            closest_dependency=max_offset,
+            closest_dependency=(
+                max_offset if max_offset is not None else 0
+            ),  # If the max offset is still None it means no dependency was found
             dependecy_type=dependency_type,
             is_conditional=is_conditional,
             branching_offset=0,  # Default value, updated later in __update_kernel_branching_instructions
