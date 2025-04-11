@@ -14,7 +14,7 @@ from config import config
 # what():  std::bad_cast
 #
 # To prevent this, import them at the beginning
-sys.path.append(config["ncu_python_report_folder"])
+sys.path.append(config["benchmarks_to_training_data"]["ncu_python_report_folder"])
 from datetime import datetime
 
 import ncu_report  # type: ignore
