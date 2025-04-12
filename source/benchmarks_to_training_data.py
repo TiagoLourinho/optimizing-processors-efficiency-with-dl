@@ -15,6 +15,17 @@ from dotenv import load_dotenv
 # what():  std::bad_cast
 #
 # To prevent this, import them at the beginning
+
+load_dotenv()
+paths = {
+    "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER"),
+    "nvcc_path": os.getenv("NVCC_PATH"),
+    "ncu_path": os.getenv("NCU_PATH"),
+    "ncu_sections_folder": os.getenv("NCU_SECTIONS_FOLDER"),
+    "ncu_python_report_folder": os.getenv("NCU_PYTHON_REPORT_FOLDER"),
+}
+config["benchmarks_to_training_data"].update(paths)
+
 sys.path.append(config["benchmarks_to_training_data"]["ncu_python_report_folder"])
 from datetime import datetime
 
@@ -222,16 +233,4 @@ def main(data: dict, config: dict):
 
 
 if __name__ == "__main__":
-    load_dotenv()
-
-    paths = {
-        "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER"),
-        "nvcc_path": os.getenv("NVCC_PATH"),
-        "ncu_path": os.getenv("NCU_PATH"),
-        "ncu_sections_folder": os.getenv("NCU_SECTIONS_FOLDER"),
-        "ncu_python_report_folder": os.getenv("NCU_PYTHON_REPORT_FOLDER"),
-    }
-
-    config["benchmarks_to_training_data"].update(paths)
-
     main(data=data, config=config["benchmarks_to_training_data"])
