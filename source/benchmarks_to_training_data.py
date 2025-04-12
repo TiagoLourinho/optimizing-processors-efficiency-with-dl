@@ -8,6 +8,20 @@ from subprocess import CalledProcessError
 from config import config
 from dotenv import load_dotenv
 
+
+load_dotenv()
+
+# Use or None to avoid having empty strings if the var isn't defined
+paths = {
+    "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER") or None,
+    "nvcc_path": os.getenv("NVCC_PATH") or None,
+    "ncu_path": os.getenv("NCU_PATH") or None,
+    "ncu_sections_folder": os.getenv("NCU_SECTIONS_FOLDER") or None,
+    "ncu_python_report_folder": os.getenv("NCU_PYTHON_REPORT_FOLDER") or None,
+}
+
+config["benchmarks_to_training_data"].update(paths)
+
 # The ncu_report C++ libraries throw the following error
 # when imported dynamically during BenchmarkMonitor initialization:
 #
@@ -15,16 +29,6 @@ from dotenv import load_dotenv
 # what():  std::bad_cast
 #
 # To prevent this, import them at the beginning
-
-load_dotenv()
-paths = {
-    "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER"),
-    "nvcc_path": os.getenv("NVCC_PATH"),
-    "ncu_path": os.getenv("NCU_PATH"),
-    "ncu_sections_folder": os.getenv("NCU_SECTIONS_FOLDER"),
-    "ncu_python_report_folder": os.getenv("NCU_PYTHON_REPORT_FOLDER"),
-}
-config["benchmarks_to_training_data"].update(paths)
 
 sys.path.append(config["benchmarks_to_training_data"]["ncu_python_report_folder"])
 from datetime import datetime
