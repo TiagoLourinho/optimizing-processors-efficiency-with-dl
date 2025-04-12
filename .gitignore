@@ -1,5 +1,5 @@
 # Manually added
-training_data.json
+*.json
 ncu_metrics.txt
 example.ptx
 bin/
