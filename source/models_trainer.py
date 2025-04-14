@@ -81,10 +81,10 @@ def main(config: dict):
     test_dataset = Subset(full_dataset, test_indices)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=config["batch_size"], shuffle=False
+        train_dataset, batch_size=config["batch_size"], shuffle=True
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=config["batch_size"], shuffle=False
+        test_dataset, batch_size=config["batch_size"], shuffle=True
     )
 
     categorical_sizes = data["models_info"]["categorical_sizes"]
