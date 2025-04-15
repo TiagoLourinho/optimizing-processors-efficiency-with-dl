@@ -84,7 +84,7 @@ class BenchmarkMonitor:
     ################################### Public methods ####################################
 
     def run_nvml(
-        self, benchmark_path: str
+        self, benchmark_path: str, benchmark_args: list
     ) -> tuple[NVML_RESULTS_SUMMARY, RUN_SAMPLES, bool]:
         """
         Runs the benchmark and monitors it using nvml
@@ -93,6 +93,8 @@ class BenchmarkMonitor:
         ----------
         benchmark_path: str
             The benchmark to run
+        benchmarks_args: list
+            The arguments that should be supplied to the benchmark
 
         Returns
         -------
@@ -161,7 +163,7 @@ class BenchmarkMonitor:
                 # Start sampling and run the application
                 sample_event.set()
                 subprocess.run(
-                    [f"./{benchmark_path}"],
+                    [f"./{benchmark_path}"] + benchmark_args,
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -192,7 +194,7 @@ class BenchmarkMonitor:
             sampler_thread.join()
             users_thread.join()
 
-    def run_ncu(self, benchmark_path: str) -> tuple[dict, bool]:
+    def run_ncu(self, benchmark_path: str, benchmarks_args: list) -> tuple[dict, bool]:
         """
         Runs the benchmark and performs the benchmork using ncu
 
@@ -200,6 +202,8 @@ class BenchmarkMonitor:
         ----------
         benchmark_path: str
             The benchmark to run
+        benchmarks_args: list
+            The arguments that should be supplied to the benchmark
 
         Returns
         -------
@@ -264,6 +268,8 @@ class BenchmarkMonitor:
                 self.__ncu_set,
                 benchmark_path,
             ]
+
+            command += benchmarks_args
 
             subprocess.run(
                 command,

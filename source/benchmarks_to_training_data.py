@@ -64,6 +64,16 @@ data: dict = {
 PTX_PATH = "bin/ptx"
 EXECUTABLES_PATH = "bin/executables"
 
+BENCHMARK_ARGS_TO_TEST = [
+    [""],  # First try the default invocation
+    [
+        128,
+        256,
+        1000,
+        32,
+    ],  # Usage ./binary <num_blocks> <num_threads_per_block> <iterations>threads active per warp
+]
+
 
 def main(data: dict, config: dict):
 
@@ -147,29 +157,79 @@ def main(data: dict, config: dict):
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
 
-                        print(f"\nRunning {benchmark_name}...")
+                        ran_successfully = False
+                        for args in BENCHMARK_ARGS_TO_TEST:
 
-                        # Some benchmarks require extra arguments like files and etc that aren't provided, so:
-                        # - Either the subprocess will return status 1 while running with NVML (CalledProcessError)
-                        # - Or if it still returns status 0, NCU will produce a warning saying that no kernels were profilled
-                        #   and the NCU report won't be created (FileNotFoundError)
-                        try:
-                            (
-                                nvml_metrics,
-                                _,
-                                nvml_did_other_users_login,
-                            ) = benchmark_monitor.run_nvml(
-                                benchmark_path=executable_path
-                            )
+                            print(f"\nRunning {benchmark_name} with args={args}...")
 
-                            ncu_metrics, ncu_did_other_users_login = (
-                                benchmark_monitor.run_ncu(
-                                    benchmark_path=executable_path
+                            # Some benchmarks require extra arguments like files and etc that aren't provided, so:
+                            # - Either the subprocess will return status 1 while running with NVML (CalledProcessError)
+                            # - Or if it still returns status 0, NCU will produce a warning saying that no kernels were profilled
+                            #   and the NCU report won't be created (FileNotFoundError)
+                            try:
+                                (
+                                    nvml_metrics,
+                                    _,
+                                    nvml_did_other_users_login,
+                                ) = benchmark_monitor.run_nvml(
+                                    benchmark_path=executable_path, benchmark_args=args
                                 )
+
+                                ncu_metrics, ncu_did_other_users_login = (
+                                    benchmark_monitor.run_ncu(
+                                        benchmark_path=executable_path,
+                                        benchmarks_args=args,
+                                    )
+                                )
+
+                            except (CalledProcessError, FileNotFoundError) as e:
+                                print(f"\nTrying next arguments:\n{str(e)}")
+                                continue
+
+                            # Save results
+                            ran_successfully = True
+
+                            data["did_other_users_login"] = (
+                                data["did_other_users_login"]
+                                or nvml_did_other_users_login
+                                or ncu_did_other_users_login
                             )
-                        except (CalledProcessError, FileNotFoundError) as e:
-                            # Delete the benchmark as it can't be profilled
-                            print(f"\nSkipping {benchmark_name}:\n{str(e)}")
+
+                            data["training_data"].append(
+                                {
+                                    "benchmark_name": benchmark_name,
+                                    "memory_frequency": memory_clock,
+                                    "graphics_frequency": graphics_clock,
+                                    "nvml_metrics": nvml_metrics,
+                                    "nvml_scaling_factors": get_nvml_scaling_factors_and_update_baselines(
+                                        benchmark_name=benchmark_name,
+                                        nvml_metrics=nvml_metrics,
+                                        baselines=baselines,
+                                    ),
+                                    "ncu_metrics": ncu_metrics,
+                                }
+                            )
+
+                            # Print current status
+                            now = datetime.now()
+                            elapsed_time = now - start_time
+                            hours, remainder = divmod(
+                                elapsed_time.total_seconds(), 3600
+                            )
+                            minutes, _ = divmod(remainder, 60)
+                            print(
+                                f"\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
+                            )
+
+                            time.sleep(gpu.sleep_time)
+
+                            break  # If these args worked, no need to test the following
+
+                        # Delete the benchmark as it can't be profilled with any of the available args
+                        if not ran_successfully:
+                            print(
+                                f"\nSkipping {benchmark_name} as it couldn't be run with any of the available arguments..."
+                            )
                             executable_path = os.path.join(
                                 EXECUTABLES_PATH, f"{benchmark_name}.out"
                             )
@@ -182,39 +242,6 @@ def main(data: dict, config: dict):
 
                             time.sleep(gpu.sleep_time)
                             skipped_benchmarks += 1
-                            continue
-
-                        data["did_other_users_login"] = (
-                            data["did_other_users_login"]
-                            or nvml_did_other_users_login
-                            or ncu_did_other_users_login
-                        )
-
-                        data["training_data"].append(
-                            {
-                                "benchmark_name": benchmark_name,
-                                "memory_frequency": memory_clock,
-                                "graphics_frequency": graphics_clock,
-                                "nvml_metrics": nvml_metrics,
-                                "nvml_scaling_factors": get_nvml_scaling_factors_and_update_baselines(
-                                    benchmark_name=benchmark_name,
-                                    nvml_metrics=nvml_metrics,
-                                    baselines=baselines,
-                                ),
-                                "ncu_metrics": ncu_metrics,
-                            }
-                        )
-
-                        now = datetime.now()
-                        elapsed_time = now - start_time
-                        hours, remainder = divmod(elapsed_time.total_seconds(), 3600)
-                        minutes, _ = divmod(remainder, 60)
-
-                        print(
-                            f"\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
-                        )
-
-                        time.sleep(gpu.sleep_time)
 
             if data["did_other_users_login"]:
                 print(
