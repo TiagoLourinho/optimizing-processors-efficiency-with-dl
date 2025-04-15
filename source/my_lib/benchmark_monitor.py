@@ -161,6 +161,7 @@ class BenchmarkMonitor:
                 sampler_return_values.clear()
 
                 # Start sampling and run the application
+                self.__wait_to_cooldown()
                 sample_event.set()
                 subprocess.run(
                     [f"./{benchmark_path}"] + benchmark_args,
@@ -173,8 +174,6 @@ class BenchmarkMonitor:
                 # Wait for the other thread to append the samples and then collect them
                 sampler_results_ready_event.wait()
                 results.append(sampler_return_values[-1])
-
-                time.sleep(self.__gpu.sleep_time)
 
             ########## Post processing ##########
 
@@ -271,6 +270,7 @@ class BenchmarkMonitor:
 
             command += benchmarks_args
 
+            self.__wait_to_cooldown()
             subprocess.run(
                 command,
                 check=True,
@@ -495,3 +495,20 @@ class BenchmarkMonitor:
 
         return_value.append(did_other_users_login)
         results_ready_event.set()
+
+    ################################### Others ####################################
+
+    def __wait_to_cooldown(self):
+        """Enters a loop that waits for the gpu to cooldown"""
+
+        max_temp = 40  # ºC
+        max_util = 5  # %
+
+        while True:
+            if (
+                self.__gpu.query(GPUQueries.TEMPERATURE) < max_temp
+                and self.__gpu.query(GPUQueries.GPU_UTILIZATION) < max_util
+            ):
+                break
+            else:
+                time.sleep(1)

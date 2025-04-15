@@ -34,11 +34,7 @@ class GPU:
 
     ######################################## Dunder methods ########################################
 
-    def __init__(self, sleep_time: int):
-        """Defines sleep time and locked flags"""
-
-        # After changing the GPU clocks, wait a bit to let the system stabilize
-        self.sleep_time = sleep_time  # s
+    def __init__(self):
 
         # To know whether or not the clocks are locked
         self.__is_graphics_clk_locked = False
@@ -129,7 +125,7 @@ class GPU:
             handle=self.__handle, minGpuClockMHz=value, maxGpuClockMHz=value
         )
 
-        time.sleep(self.sleep_time)
+        time.sleep(1)
 
         # NVML returns for example 7001 MHz in the supported clocks,
         # but then the value returned by the query is just 7000 MHz
@@ -153,7 +149,7 @@ class GPU:
             handle=self.__handle, minMemClockMHz=value, maxMemClockMHz=value
         )
 
-        time.sleep(self.sleep_time)
+        time.sleep(1)
 
         # NVML returns for example 7001 MHz in the supported clocks,
         # but then the value returned by the query is just 7000 MHz
@@ -166,7 +162,7 @@ class GPU:
         """Resets the graphics clock to the default value"""
 
         nvmlDeviceResetGpuLockedClocks(handle=self.__handle)
-        time.sleep(self.sleep_time)
+        time.sleep(1)
 
         self.__is_graphics_clk_locked = False
 
@@ -174,7 +170,7 @@ class GPU:
         """Resets the memory clock to the default value"""
 
         nvmlDeviceResetMemoryLockedClocks(handle=self.__handle)
-        time.sleep(self.sleep_time)
+        time.sleep(1)
 
         self.__is_memory_clk_locked = False
 

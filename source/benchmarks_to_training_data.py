@@ -93,7 +93,7 @@ def main(data: dict, config: dict):
     print("Script started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     # Init the GPU and compile the benchmark
-    with GPU(sleep_time=config["gpu_sleep_time"]) as gpu:
+    with GPU() as gpu:
         try:
             compiler = Compiler(
                 nvcc_path=config["nvcc_path"],
@@ -221,8 +221,6 @@ def main(data: dict, config: dict):
                                 f"\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])}"
                             )
 
-                            time.sleep(gpu.sleep_time)
-
                             break  # If these args worked, no need to test the following
 
                         # Delete the benchmark as it can't be profilled with any of the available args
@@ -240,7 +238,6 @@ def main(data: dict, config: dict):
 
                             del data["ptxs"][benchmark_name]
 
-                            time.sleep(gpu.sleep_time)
                             skipped_benchmarks += 1
 
             if data["did_other_users_login"]:

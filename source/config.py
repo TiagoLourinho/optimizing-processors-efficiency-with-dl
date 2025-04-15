@@ -13,7 +13,6 @@ config = {
         ########## GPU config ##########
         ################################
         "n_core_clocks": 20,  # int - The amount of core clocks to consider when collecting samples (GPUs have like >120 which might be too many)
-        "gpu_sleep_time": 0.5,  # float [s] - The amount of time to sleep after changing GPU clocks speeds so the systems stabilizes.
         #################################
         ########## NVML config ##########
         #################################

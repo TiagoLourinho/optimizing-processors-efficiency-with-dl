@@ -99,7 +99,6 @@ def validate_config(config: dict):
         "ncu_sections_folder": get_key_config_dict(required=False, type=str),
         "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
         "n_core_clocks": get_key_config_dict(required=True, type=int),
-        "gpu_sleep_time": get_key_config_dict(required=True, type=float),
         "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
         "nvml_n_runs": get_key_config_dict(required=True, type=int),
         "ncu_set": get_key_config_dict(required=True, type=str),
