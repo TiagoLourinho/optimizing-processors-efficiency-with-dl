@@ -70,13 +70,13 @@ BENCHMARK_ARGS_TO_TEST = [
     [
         "128",
         "256",
-        "10000",
+        "1000",
         "32",
     ],  # Usage ./binary <num_blocks> <num_threads_per_block> <iterations>threads active per warp
     [
         "128",
         "256",
-        "10000",
+        "1000",
         "32",
         "1",
     ],  # Some benchmarks give the error message as the previous one but still expect one extra argument for the stride
