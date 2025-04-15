@@ -22,7 +22,7 @@ config = {
         ################################
         ########## NCU config ##########
         ################################
-        "ncu_set": "basic",  # str - The name of the set of metrics to collect using NCU.}
+        "ncu_set": "basic",  # str - The name of the set of metrics to collect using NCU.
     },
     "models_trainer": {
         ######################################
