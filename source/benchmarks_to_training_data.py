@@ -42,7 +42,7 @@ from my_lib.PTX_parser import PTXParser
 from my_lib.utils import (
     are_there_other_users,
     collect_system_info,
-    get_nvml_scaling_factors_and_update_baselines,
+    calculate_nvml_scaling_factors,
     reduce_clocks_list,
     validate_config,
 )
@@ -57,6 +57,7 @@ data: dict = {
     "system_info": {},  # System information
     "did_other_users_login": False,  # Whether or not another user logged in during metrics collection
     "models_info": {},  # Extra info needed in the pytorch side to create the models
+    "default_freqs": {},  # Keep track of the default frequencies found
     "ptxs": {},  # Contains the PTX of every considered benchmark
     "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/ncu metrics)
 }
@@ -94,6 +95,18 @@ def main(data: dict, config: dict):
 
     # Init the GPU and compile the benchmark
     with GPU() as gpu:
+
+        # Find default values
+        gpu.reset_graphics_clk()
+        gpu.reset_memory_clk()
+        time.sleep(1)
+        data["default_freqs"]["graphics"] = gpu.graphics_clk
+        data["default_freqs"]["memory"] = gpu.memory_clk
+
+        print(
+            f'Defaults freqs: Core: {data["default_freqs"]["graphics"]} Mem: {data["default_freqs"]["memory"]}'
+        )
+
         try:
             compiler = Compiler(
                 nvcc_path=config["nvcc_path"],
@@ -154,6 +167,12 @@ def main(data: dict, config: dict):
 
                     for executable in os.listdir(EXECUTABLES_PATH):
 
+                        # Flags whether or not to save this as a baseline
+                        running_at_default_freqs = (
+                            graphics_clock == data["default_freqs"]["graphics"]
+                            and memory_clock == data["default_freqs"]["memory"]
+                        )
+
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
 
@@ -201,14 +220,12 @@ def main(data: dict, config: dict):
                                     "memory_frequency": memory_clock,
                                     "graphics_frequency": graphics_clock,
                                     "nvml_metrics": nvml_metrics,
-                                    "nvml_scaling_factors": get_nvml_scaling_factors_and_update_baselines(
-                                        benchmark_name=benchmark_name,
-                                        nvml_metrics=nvml_metrics,
-                                        baselines=baselines,
-                                    ),
                                     "ncu_metrics": ncu_metrics,
                                 }
                             )
+
+                            if running_at_default_freqs:
+                                baselines[benchmark_name] = nvml_metrics
 
                             # Print current status
                             now = datetime.now()
@@ -239,6 +256,17 @@ def main(data: dict, config: dict):
                             del data["ptxs"][benchmark_name]
 
                             skipped_benchmarks += 1
+
+            # Calculate scaling factors
+            for sample in data["training_data"]:
+                sample.update(
+                    {
+                        "nvml_scaling_factors": calculate_nvml_scaling_factors(
+                            sample=sample,
+                            baselines=baselines,
+                        ),
+                    }
+                )
 
             if data["did_other_users_login"]:
                 print(
