@@ -6,44 +6,20 @@ import cpuinfo
 import psutil
 
 
-def reduce_clocks_list(original_clocks: list[int], N: int, reverse: bool):
+def reduce_clocks_list(original_clocks: list[int], N: int, default: int):
     """
-    Given a list of clocks, returns a reduced list with the first and last item,
-    and then a "linspace" extracted from the original list until size N
+    Given a list of clocks, returns a reduced list with the N closest clocks to the default value.
+
+    If N > len(original_clocks), then all the clocks are returned.
     """
 
-    original_clocks.sort()
+    # Sort the clocks by their absolute distance to the default
+    sorted_clocks = sorted(original_clocks, key=lambda x: abs(x - default))
 
-    if len(original_clocks) <= N:
-        return sorted(original_clocks, reverse=reverse)
+    # Return the first N clocks (or all of them if N is too large)
+    reduced = sorted_clocks[:N]
 
-    # Create N points between first and last (inclusive)
-    target_values = np.linspace(
-        start=original_clocks[0],
-        stop=original_clocks[-1],
-        endpoint=True,
-        num=N,
-        dtype=int,
-    )
-
-    # For each target value, find the closest value in the original list
-    reduced = []
-    for target in target_values:
-        closest = min(original_clocks, key=lambda x: abs(x - target))
-        reduced.append(closest)
-
-    # Remove duplicates
-    reduced = list(set(reduced))
-
-    # Ensure at least N elements are returend by filling in from original if needed
-    while len(reduced) < N:
-        for val in original_clocks:
-            if val not in reduced:
-                reduced.append(val)
-                if len(reduced) == N:
-                    break
-
-    return sorted(reduced, reverse=reverse)
+    return sorted(reduced)
 
 
 def collect_system_info(gpu_name: str) -> dict:
@@ -98,7 +74,8 @@ def validate_config(config: dict):
         "ncu_path": get_key_config_dict(required=True, type=str),
         "ncu_sections_folder": get_key_config_dict(required=False, type=str),
         "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
-        "n_core_clocks": get_key_config_dict(required=True, type=int),
+        "n_closest_core_clocks": get_key_config_dict(required=True, type=int),
+        "n_closest_mem_clocks": get_key_config_dict(required=True, type=int),
         "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
         "nvml_n_runs": get_key_config_dict(required=True, type=int),
         "ncu_set": get_key_config_dict(required=True, type=str),

@@ -143,12 +143,25 @@ def main(data: dict, config: dict):
             total_compiled_benchmarks = len(os.listdir(EXECUTABLES_PATH))
             skipped_benchmarks = 0
             skipped_clock_configs = 0
-            for memory_clock in sorted(gpu.get_supported_memory_clocks(), reverse=True):
-                for graphics_clock in reduce_clocks_list(
-                    gpu.get_supported_graphics_clocks(memory_clock=memory_clock),
-                    N=config["n_core_clocks"],
-                    reverse=True,
-                ):
+
+            sample_mem_clocks = reduce_clocks_list(
+                original_clocks=gpu.get_supported_memory_clocks(),
+                N=config["n_closest_mem_clocks"],
+                default=data["default_freqs"]["memory"],
+            )
+            print("Memory clocks to sample on: ", sample_mem_clocks)
+            for memory_clock in sample_mem_clocks:
+
+                sample_core_clocks = reduce_clocks_list(
+                    original_clocks=gpu.get_supported_graphics_clocks(
+                        memory_clock=memory_clock
+                    ),
+                    N=config["n_closest_core_clocks"],
+                    default=data["default_freqs"]["graphics"],
+                )
+
+                print("Core clocks to sample on: ", sample_core_clocks)
+                for graphics_clock in sample_core_clocks:
                     try:
                         gpu.memory_clk = memory_clock
                         gpu.graphics_clk = graphics_clock
