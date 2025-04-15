@@ -68,11 +68,18 @@ EXECUTABLES_PATH = "bin/executables"
 BENCHMARK_ARGS_TO_TEST = [
     [""],  # First try the default invocation
     [
-        128,
-        256,
-        1000,
-        32,
+        "128",
+        "256",
+        "10000",
+        "32",
     ],  # Usage ./binary <num_blocks> <num_threads_per_block> <iterations>threads active per warp
+    [
+        "128",
+        "256",
+        "10000",
+        "32",
+        "1",
+    ],  # Some benchmarks give the error message as the previous one but still expect one extra argument for the stride
 ]
 
 
@@ -91,7 +98,7 @@ def main(data: dict, config: dict):
     data["config"] = config
 
     start_time = datetime.now()
-    print("Script started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("\nScript started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     # Init the GPU and compile the benchmark
     with GPU() as gpu:
@@ -149,7 +156,7 @@ def main(data: dict, config: dict):
                 N=config["n_closest_mem_clocks"],
                 default=data["default_freqs"]["memory"],
             )
-            print("Memory clocks to sample on: ", sample_mem_clocks)
+            print("\nMemory clocks to sample on: ", sample_mem_clocks)
             for memory_clock in sample_mem_clocks:
 
                 sample_core_clocks = reduce_clocks_list(
@@ -160,7 +167,7 @@ def main(data: dict, config: dict):
                     default=data["default_freqs"]["graphics"],
                 )
 
-                print("Core clocks to sample on: ", sample_core_clocks)
+                print("\nCore clocks to sample on: ", sample_core_clocks)
                 for graphics_clock in sample_core_clocks:
                     try:
                         gpu.memory_clk = memory_clock
@@ -215,7 +222,7 @@ def main(data: dict, config: dict):
                                 )
 
                             except (CalledProcessError, FileNotFoundError) as e:
-                                print(f"\nTrying next arguments:\n{str(e)}")
+                                print(f"\n{str(e)}")
                                 continue
 
                             # Save results
