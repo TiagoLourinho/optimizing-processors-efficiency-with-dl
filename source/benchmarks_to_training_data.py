@@ -66,7 +66,7 @@ PTX_PATH = "bin/ptx"
 EXECUTABLES_PATH = "bin/executables"
 
 BENCHMARK_ARGS_TO_TEST = [
-    [""],  # First try the default invocation
+    None,  # First try the default invocation
     [
         "128",
         "256",

@@ -161,10 +161,14 @@ class BenchmarkMonitor:
                 sampler_return_values.clear()
 
                 # Start sampling and run the application
+                command = [f"./{benchmark_path}"]
+                if benchmark_args is not None:
+                    commnad += benchmark_args
+
                 self.__wait_to_cooldown()
                 sample_event.set()
                 subprocess.run(
-                    [f"./{benchmark_path}"] + benchmark_args,
+                    command,
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -268,7 +272,8 @@ class BenchmarkMonitor:
                 benchmark_path,
             ]
 
-            command += benchmarks_args
+            if benchmarks_args is not None:
+                command += benchmarks_args
 
             self.__wait_to_cooldown()
             subprocess.run(
@@ -504,6 +509,7 @@ class BenchmarkMonitor:
         max_temp = 50  # ºC
         max_util = 5  # %
 
+        i = 0
         while True:
             if (
                 self.__gpu.query(GPUQueries.TEMPERATURE) < max_temp
@@ -512,3 +518,7 @@ class BenchmarkMonitor:
                 break
             else:
                 time.sleep(1)
+                i += 1
+
+            if i > 5:
+                print(f"Have been waiting for the GPU to cooldown for {i} s...")
