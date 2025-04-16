@@ -163,7 +163,7 @@ class BenchmarkMonitor:
                 # Start sampling and run the application
                 command = [f"./{benchmark_path}"]
                 if benchmark_args is not None:
-                    commnad += benchmark_args
+                    command += benchmark_args
 
                 self.__wait_to_cooldown()
                 sample_event.set()
