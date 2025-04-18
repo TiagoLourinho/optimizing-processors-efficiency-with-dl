@@ -200,10 +200,10 @@ def main(config: dict):
 
                 test_loss += loss.item()
 
-                all_power_preds.append(power_pred.cpu())
-                all_runtime_preds.append(runtime_pred.cpu())
-                all_power_golds.append(power_gold.cpu())
-                all_runtime_golds.append(runtime_gold.cpu())
+                all_power_preds.append(float(power_pred.cpu().item()))
+                all_runtime_preds.append(float(runtime_pred.cpu().item()))
+                all_power_golds.append(float(power_gold.cpu().item()))
+                all_runtime_golds.append(float(runtime_gold.cpu().item()))
 
         test_avg_loss = test_loss / len(test_loader)
         test_loss_values.append(test_avg_loss)
@@ -234,6 +234,46 @@ def main(config: dict):
 
     print(f"\nModels from best epoch {best_epoch+1} saved successfully!")
 
+    ########## Restore best weights and get final predictions ##########
+
+    ptx_encoder.load_state_dict(best_ptx_encoder_state)
+    power_predictor.load_state_dict(best_power_predictor_state)
+    runtime_predictor.load_state_dict(best_runtime_predictor_state)
+
+    ptx_encoder.eval()
+    power_predictor.eval()
+    runtime_predictor.eval()
+
+    all_predictions = {"train": {}, "test": {}}
+    with torch.no_grad():
+        for split_key in all_predictions:
+
+            dataloader = train_loader if split_key == "train" else test_loader
+
+            for batch in tqdm(
+                dataloader,
+                desc=f"Getting final predicitons for {split_key} set",
+                leave=False,
+            ):
+                _, power_pred, runtime_pred, power_gold, runtime_gold = forward_batch(
+                    config=config,
+                    batch=batch,
+                    device=device,
+                    ptx_encoder=ptx_encoder,
+                    power_predictor=power_predictor,
+                    runtime_predictor=runtime_predictor,
+                    criterion=criterion,
+                )
+
+                all_predictions[split_key][batch["benchmark_name"]] = {
+                    "runtime_predict": float(runtime_pred.cpu().item()),
+                    "runtime_gold": float(runtime_gold.cpu().item()),
+                    "power_predict": float(power_pred.cpu().item()),
+                    "power_gold": float(power_gold.cpu().item()),
+                }
+
+    ########## Save results summary ##########
+
     results_summary = "models_training_summary.json"
     with open(results_summary, "w") as json_file:
         summary = {
@@ -250,6 +290,7 @@ def main(config: dict):
                 "test_loss": test_loss_values,
                 "test_r2": test_r2_values,
             },
+            "all_best_predictions": all_predictions,
         }
         json.dump(summary, json_file, indent=4)
         print(f"\nExported results summary to {results_summary}.")
