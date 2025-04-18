@@ -122,7 +122,7 @@ def main(config: dict):
     runtime_optimizer = optim.Adam(
         runtime_predictor.parameters(), lr=config["learning_rate"]
     )
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
 
     # Store info for the results JSON
     train_loss_values = []
