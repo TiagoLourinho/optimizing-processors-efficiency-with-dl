@@ -265,7 +265,9 @@ def main(config: dict):
                     criterion=criterion,
                 )
 
-                all_predictions[split_key][batch["benchmark_name"]] = {
+                all_predictions[split_key][
+                    f'{batch["benchmark_name"]}_at_f_mem={batch["memory_frequency"]}_f_core={batch["graphics_frequency"]}'
+                ] = {
                     "runtime_predict": float(runtime_pred.cpu().item()),
                     "runtime_gold": float(runtime_gold.cpu().item()),
                     "power_predict": float(power_pred.cpu().item()),
@@ -297,4 +299,12 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
+    config["models_trainer"].update(
+        {
+            "memory_levels": {
+                "core": config["benchmarks_to_training_data"]["n_closest_core_clocks"],
+                "mem": config["benchmarks_to_training_data"]["n_closest_mem_clocks"],
+            }
+        }
+    )
     main(config=config["models_trainer"])
