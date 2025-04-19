@@ -266,7 +266,7 @@ def main(config: dict):
                 )
 
                 all_predictions[split_key][
-                    f'{batch["benchmark_name"]}_at_f_mem={batch["memory_frequency"]}_f_core={batch["graphics_frequency"]}'
+                    f'{batch["benchmark_name"]}_at_f_mem={int(batch["memory_frequency"].item())}_f_core={int(batch["graphics_frequency"].item())}'
                 ] = {
                     "runtime_predict": float(runtime_pred.cpu().item()),
                     "runtime_gold": float(runtime_gold.cpu().item()),
