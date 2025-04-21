@@ -98,20 +98,25 @@ def main(config: dict):
         numerical_dim=n_numerical_features,
         hidden_dim=config["lstm_hidden_dim"],
         num_layers=config["lstm_layers"],
+        dropout_prob=config["dropout_rate"],
     ).to(device)
 
     power_predictor = NVMLScalingFactorsPredictor(
         ptx_dim=config["lstm_hidden_dim"],
         ncu_dim=n_ncu_metrics,
+        number_of_layers=config["fnn_layers"],
         hidden_dim=config["fnn_hidden_dim"],
         dropout_rate=config["dropout_rate"],
+        use_ncu_metrics=config["use_ncu_metrics"],
     ).to(device)
 
     runtime_predictor = NVMLScalingFactorsPredictor(
         ptx_dim=config["lstm_hidden_dim"],
         ncu_dim=n_ncu_metrics,
+        number_of_layers=config["fnn_layers"],
         hidden_dim=config["fnn_hidden_dim"],
         dropout_rate=config["dropout_rate"],
+        use_ncu_metrics=config["use_ncu_metrics"],
     ).to(device)
 
     # Optimizers and loss function

@@ -28,20 +28,22 @@ config = {
         ######################################
         ########## Training Related ##########
         ######################################
-        "random_seed": 1,  # int - The seed used for random things
-        "epochs": 50,  # int - Number of epochs to train
+        "random_seed": 42,  # int - The seed used for random things
+        "epochs": 20,  # int - Number of epochs to train
         "train_percent": 0.8,  # float - Percent of data to use to train (rest is test)
         "batch_size": None,  # int | None - The batch size (or None for no batch)
-        "learning_rate": 0.001,  # float - The optimizer learning rate
+        "learning_rate": 0.005,  # float - The optimizer learning rate
         "runtime_loss_weight": 1,  # float - The weight for the runtime loss when combining losses
         "power_loss_weight": 1,  # float - The weight for the power loss when combining losses
         ##########################################
         ########## Architecture Related ##########
         ##########################################
         "categorical_embedding_dim": 16,  # int - Dimension of the embeddings for categorical features
-        "lstm_hidden_dim": 128,  # int - Hidden dimension of the LSTM
-        "lstm_layers": 1,  # int - Number of layers in the LSTM
+        "lstm_hidden_dim": 64,  # int - Hidden dimension of the LSTM
+        "lstm_layers": 2,  # int - Number of layers in the LSTM
+        "use_ncu_metrics": False,  # bool - Whether to use NCU metrics or not (runtime information)
+        "fnn_layers": 2,  # int - Number of fully connected layers
         "fnn_hidden_dim": 128,  # int - Number of hidden units in fully connected layers
-        "dropout_rate": 0.3,  # float - Dropout rate for regularization
+        "dropout_rate": 0.0,  # float - Dropout rate for regularization
     },
 }

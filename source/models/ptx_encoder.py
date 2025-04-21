@@ -20,6 +20,8 @@ class KernelEncoder(nn.Module):
         Hidden dimension of the LSTM.
     num_layers : int
         Number of layers in the LSTM.
+    dropout_prob: float
+        Dropout probability for the LSTM.
     """
 
     def __init__(
@@ -29,6 +31,7 @@ class KernelEncoder(nn.Module):
         numerical_dim: int,
         hidden_dim: int,
         num_layers: int,
+        dropout_prob: float,
     ):
         super(KernelEncoder, self).__init__()
 
@@ -42,6 +45,7 @@ class KernelEncoder(nn.Module):
             + numerical_dim,  # Numerical features are directly concatenated
             hidden_size=hidden_dim,
             num_layers=num_layers,
+            dropout=dropout_prob,
         )
 
     def forward(
@@ -97,6 +101,8 @@ class PTXEncoder(nn.Module):
         Hidden dimension of the LSTM.
     num_layers : int
         Number of layers in the LSTM.
+    dropout_prob: float
+        Dropout probability for the LSTM.
     """
 
     def __init__(
@@ -106,10 +112,16 @@ class PTXEncoder(nn.Module):
         numerical_dim: int,
         hidden_dim: int,
         num_layers: int,
+        dropout_prob: float,
     ) -> None:
         super(PTXEncoder, self).__init__()
         self.kernel_encoder = KernelEncoder(
-            vocab_sizes, embedding_dim, numerical_dim, hidden_dim, num_layers
+            vocab_sizes,
+            embedding_dim,
+            numerical_dim,
+            hidden_dim,
+            num_layers,
+            dropout_prob,
         )
 
     def forward(
