@@ -96,26 +96,3 @@ def validate_config(config: dict):
                 raise ValueError(f"Key {key} should be defined.")
         elif not isinstance(value, type):
             raise ValueError(f"Key {key} has invalid type.")
-
-
-def calculate_nvml_scaling_factors(sample: dict, baselines: dict):
-    """
-    Given the nvml_metrics, it calculates the scaling factors with the
-    reference being obtained at the default frequencies
-    """
-
-    assert (
-        sample["benchmark_name"] in baselines
-    ), f'Baseline for {sample["benchmark_name"]} not found'
-
-    power_baseline = baselines[sample["benchmark_name"]]["average_POWER"]
-    runtime_baseline = baselines[sample["benchmark_name"]]["median_run_time"]
-
-    scaling_factors = {
-        "runtime_scaling_factor": sample["nvml_metrics"]["median_run_time"]
-        / runtime_baseline,
-        "power_scaling_factor": sample["nvml_metrics"]["average_POWER"]
-        / power_baseline,
-    }
-
-    return scaling_factors

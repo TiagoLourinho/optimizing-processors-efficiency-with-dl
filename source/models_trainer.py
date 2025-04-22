@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 from config import config
 from models.dataset import TrainingDataset
-from models.predictor import NVMLScalingFactorsPredictor
+from models.predictor import NVMLMetricsPredictor
 from models.ptx_encoder import PTXEncoder
 from my_lib.utils import collect_system_info
 from sklearn.metrics import r2_score
@@ -20,16 +20,16 @@ def forward_batch(
     batch: dict,
     device,
     ptx_encoder: PTXEncoder,
-    power_predictor: NVMLScalingFactorsPredictor,
-    runtime_predictor: NVMLScalingFactorsPredictor,
+    power_predictor: NVMLMetricsPredictor,
+    runtime_predictor: NVMLMetricsPredictor,
     criterion,
 ):
     split_ptx = batch["split_ptx"]
     core_freq = batch["graphics_frequency"].to(device)
     mem_freq = batch["memory_frequency"].to(device)
     ncu_metrics = batch["ncu_metrics"].to(device)
-    power_gold = batch["power_scaling_factor"].to(device)
-    runtime_gold = batch["runtime_scaling_factor"].to(device)
+    power_gold = batch["power_gold"].to(device)
+    runtime_gold = batch["runtime_gold"].to(device)
 
     categorical_parts = [t.to(device) for t in split_ptx["categorical_kernels_parts"]]
     numerical_parts = [t.to(device) for t in split_ptx["numerical_kernels_parts"]]
@@ -101,7 +101,7 @@ def main(config: dict):
         dropout_prob=config["dropout_rate"],
     ).to(device)
 
-    power_predictor = NVMLScalingFactorsPredictor(
+    power_predictor = NVMLMetricsPredictor(
         ptx_dim=config["lstm_hidden_dim"],
         ncu_dim=n_ncu_metrics,
         number_of_layers=config["fnn_layers"],
@@ -110,7 +110,7 @@ def main(config: dict):
         use_ncu_metrics=config["use_ncu_metrics"],
     ).to(device)
 
-    runtime_predictor = NVMLScalingFactorsPredictor(
+    runtime_predictor = NVMLMetricsPredictor(
         ptx_dim=config["lstm_hidden_dim"],
         ncu_dim=n_ncu_metrics,
         number_of_layers=config["fnn_layers"],

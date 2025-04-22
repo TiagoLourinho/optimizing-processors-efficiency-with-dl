@@ -29,10 +29,8 @@ class TrainingDataset(Dataset):
         )  # Remove metrics names from the dictionary
 
         # Targets
-        power_scaling_factor = sample["nvml_scaling_factors"]["power_scaling_factor"]
-        runtime_scaling_factor = sample["nvml_scaling_factors"][
-            "runtime_scaling_factor"
-        ]
+        power_gold = sample["nvml_metrics"]["average_POWER"]
+        runtime_gold = sample["nvml_metrics"]["median_run_time"]
 
         return {
             "benchmark_name": benchmark_name,
@@ -40,8 +38,8 @@ class TrainingDataset(Dataset):
             "graphics_frequency": core_freq,
             "memory_frequency": mem_freq,
             "ncu_metrics": ncu_metrics,
-            "power_scaling_factor": power_scaling_factor,
-            "runtime_scaling_factor": runtime_scaling_factor,
+            "power_gold": power_gold,
+            "runtime_gold": runtime_gold,
         }
 
     def __convert_to_tensors(self, data):

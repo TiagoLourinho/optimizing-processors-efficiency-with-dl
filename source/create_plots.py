@@ -86,8 +86,8 @@ def plot_predictions_vs_gold(input_file: str, output_file: str) -> None:
         color="red",
         linestyle="--",
     )
-    axes[0].set_xlabel("Gold Runtime Scaling")
-    axes[0].set_ylabel("Predicted Runtime Scaling")
+    axes[0].set_xlabel("Gold Runtime")
+    axes[0].set_ylabel("Predicted Runtime")
     axes[0].legend()
     axes[0].grid(True)
 
@@ -124,8 +124,8 @@ def plot_predictions_vs_gold(input_file: str, output_file: str) -> None:
         linestyle="--",
     )
 
-    axes[1].set_xlabel("Gold Power Scaling")
-    axes[1].set_ylabel("Predicted Power Scaling")
+    axes[1].set_xlabel("Gold Power")
+    axes[1].set_ylabel("Predicted Power")
     axes[1].legend()
     axes[1].grid(True)
 

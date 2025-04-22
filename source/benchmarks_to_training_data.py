@@ -42,7 +42,6 @@ from my_lib.PTX_parser import PTXParser
 from my_lib.utils import (
     are_there_other_users,
     collect_system_info,
-    calculate_nvml_scaling_factors,
     reduce_clocks_list,
     validate_config,
 )
@@ -142,11 +141,6 @@ def main(data: dict, config: dict):
                     os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
                 )
 
-            # For each combination of graphics and memory clocks, run all benchmarks and collect the metrics
-            # Start by the higher frequencies so that the baselines can be collected
-            baselines = (
-                dict()
-            )  # For each benchmark, contains the reference runtime and average power
             total_compiled_benchmarks = len(os.listdir(EXECUTABLES_PATH))
             skipped_benchmarks = 0
             skipped_clock_configs = 0
@@ -186,12 +180,6 @@ def main(data: dict, config: dict):
                         continue
 
                     for executable in os.listdir(EXECUTABLES_PATH):
-
-                        # Flags whether or not to save this as a baseline
-                        running_at_default_freqs = (
-                            graphics_clock == data["default_freqs"]["graphics"]
-                            and memory_clock == data["default_freqs"]["memory"]
-                        )
 
                         benchmark_name = executable.replace(".out", "")
                         executable_path = os.path.join(EXECUTABLES_PATH, executable)
@@ -244,9 +232,6 @@ def main(data: dict, config: dict):
                                 }
                             )
 
-                            if running_at_default_freqs:
-                                baselines[benchmark_name] = nvml_metrics
-
                             # Print current status
                             now = datetime.now()
                             elapsed_time = now - start_time
@@ -276,17 +261,6 @@ def main(data: dict, config: dict):
                             del data["ptxs"][benchmark_name]
 
                             skipped_benchmarks += 1
-
-            # Calculate scaling factors
-            for sample in data["training_data"]:
-                sample.update(
-                    {
-                        "nvml_scaling_factors": calculate_nvml_scaling_factors(
-                            sample=sample,
-                            baselines=baselines,
-                        ),
-                    }
-                )
 
             if data["did_other_users_login"]:
                 print(
