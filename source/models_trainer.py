@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from config import config
-from models.dataset import TrainingDataset
+from models.dataset import CustomDataset
 from models.predictor import NVMLMetricsPredictor
 from models.ptx_encoder import PTXEncoder
 from my_lib.utils import collect_system_info
@@ -67,7 +67,9 @@ def main(config: dict):
     # Loading data
     with open("training_data.json", "r") as f:
         data = json.load(f)
-    full_dataset = TrainingDataset(samples=data["training_data"], ptx=data["ptxs"])
+    full_dataset = CustomDataset(
+        samples=data["training_data"], ptx=data["ptxs"], models_info=data["models_info"]
+    )
 
     # Split into train and test
     dataset_size = len(full_dataset)
