@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_predictions_vs_gold(input_file: str, output_file: str) -> None:
-
+def plot_training_summary(input_file: str, output_file: str) -> None:
     ##### Data extraction #####
 
     with open(input_file, "r") as f:
@@ -47,9 +46,21 @@ def plot_predictions_vs_gold(input_file: str, output_file: str) -> None:
     power_mae_train = calculate_mae_percentage(train_power_gold, train_power_predict)
     power_mae_test = calculate_mae_percentage(test_power_gold, test_power_predict)
 
+    ##### Losses and R² data #####
+
+    train_loss = data["values_per_epoch"]["train_loss"]
+    test_loss = data["values_per_epoch"]["test_loss"]
+    test_r2 = data["values_per_epoch"]["test_r2"]
+    best_epoch_results = data["best_epoch_results"]
+
+    best_epoch = best_epoch_results["best_epoch"]
+    best_train_loss = best_epoch_results["best_train_loss"]
+    best_test_loss = best_epoch_results["best_test_loss"]
+    best_test_r2 = best_epoch_results["best_test_r2"]
+
     ##### Plots creation #####
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 3, figsize=(24, 6))
 
     # Runtime plot
     axes[0].scatter(
@@ -129,6 +140,34 @@ def plot_predictions_vs_gold(input_file: str, output_file: str) -> None:
     axes[1].legend()
     axes[1].grid(True)
 
+    # Loss and R2 plot
+    epochs = np.arange(len(train_loss))
+
+    # Create a second y-axis for test R2
+    ax2 = axes[2].twinx()
+
+    # Plot Train Loss and Test Loss on the left y-axis and r^2 on right
+    axes[2].plot(epochs, train_loss, label="Train Loss", color="blue")
+    axes[2].plot(epochs, test_loss, label="Test Loss", color="orange")
+    ax2.plot(epochs, test_r2, label="Test R2", color="green")
+
+    # Mark best epoch
+    axes[2].axvline(best_epoch, color="red", linestyle="--")
+    axes[2].text(
+        best_epoch,
+        max(test_loss) * 1.1,
+        f"Best Epoch {best_epoch}\nTrain Loss: {best_train_loss:.4f}\nTest Loss: {best_test_loss:.4f}\nTest R2: {best_test_r2:.4f}",
+        color="red",
+        ha="center",
+    )
+
+    axes[2].set_xlabel("Epochs")
+    axes[2].set_ylabel("Loss")
+    ax2.set_ylabel("Test R²")
+    axes[2].legend(loc="upper left")
+    ax2.legend(loc="upper right")
+    axes[2].grid(True)
+
     # Add frequency levels as a text box
     freq_text = (
         r"$\bf{Frequency\ levels:}$"
@@ -148,7 +187,7 @@ def main():
         "--plot_type",
         type=str,
         required=True,
-        help="Type of plot to generate (e.g., 'predictions_vs_gold').",
+        help="Type of plot to generate (e.g., 'training_summary').",
     )
     parser.add_argument(
         "--input_file",
@@ -165,8 +204,8 @@ def main():
 
     args = parser.parse_args()
 
-    if args.plot_type == "predictions_vs_gold":
-        plot_predictions_vs_gold(args.input_file, args.output_file)
+    if args.plot_type == "training_summary":
+        plot_training_summary(args.input_file, args.output_file)
     else:
         raise ValueError(f"Unsupported plot type: {args.plot_type}")
 
