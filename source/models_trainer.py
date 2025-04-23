@@ -2,6 +2,7 @@ import copy
 import json
 import random
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -54,6 +55,9 @@ def main(config: dict):
     random.seed(config["random_seed"])
     torch.manual_seed(config["random_seed"])
     torch.cuda.manual_seed_all(config["random_seed"])
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False  # Prevents cuDNN from auto-tuning convolution algorithms based on performance heuristics (which introduces randomness)
+    np.random.seed(config["random_seed"])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
