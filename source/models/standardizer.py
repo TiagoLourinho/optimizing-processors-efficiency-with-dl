@@ -167,4 +167,9 @@ class Standardizer:
 
     def __standardize(self, value: float, mean: float, std: float) -> float:
         """Standaridzation formula"""
-        return float((value - mean) / std)
+
+        # Avoid division by zero in some ncu metrics that are constant
+        if std == 0.0:
+            return 0.0
+        else:
+            return float((value - mean) / std)
