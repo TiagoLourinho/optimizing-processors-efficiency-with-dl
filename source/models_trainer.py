@@ -304,7 +304,7 @@ def main(config: dict):
             "config": config,
             "system_info": system_info,
             "best_epoch_results": {
-                "best_epoch": best_epoch + 1,  # Starts at 0
+                "best_epoch": best_epoch,
                 "best_train_loss": train_loss_values[best_epoch],
                 "best_test_loss": test_loss_values[best_epoch],
                 "best_test_r2": test_r2_values[best_epoch],

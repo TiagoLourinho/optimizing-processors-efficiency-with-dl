@@ -33,18 +33,28 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         test_data, "power_gold", "power_predict"
     )
 
-    ##### Calculate MAE in percentage #####
+    ##### Calculate MAE and sMAPE #####
 
-    def calculate_mae_percentage(gold, predictions):
-        return np.mean(np.abs(gold - predictions) / gold) * 100
+    def calculate_mae(gold, predictions):
+        return np.mean(np.abs(gold - predictions))
 
-    runtime_mae_train = calculate_mae_percentage(
-        train_runtime_gold, train_runtime_predict
-    )
-    runtime_mae_test = calculate_mae_percentage(test_runtime_gold, test_runtime_predict)
+    def calculate_smape(gold, predictions):
+        numerator = np.abs(gold - predictions)
+        denominator = (np.abs(gold) + np.abs(predictions)) / 2
+        # Suppress divide-by-zero and invalid operation warnings when denominator is zero or NaN
+        with np.errstate(divide="ignore", invalid="ignore"):
+            smape = numerator / denominator
+        return np.nanmean(smape) * 100
 
-    power_mae_train = calculate_mae_percentage(train_power_gold, train_power_predict)
-    power_mae_test = calculate_mae_percentage(test_power_gold, test_power_predict)
+    runtime_mae_train = calculate_mae(train_runtime_gold, train_runtime_predict)
+    runtime_mae_test = calculate_mae(test_runtime_gold, test_runtime_predict)
+    power_mae_train = calculate_mae(train_power_gold, train_power_predict)
+    power_mae_test = calculate_mae(test_power_gold, test_power_predict)
+
+    runtime_smape_train = calculate_smape(train_runtime_gold, train_runtime_predict)
+    runtime_smape_test = calculate_smape(test_runtime_gold, test_runtime_predict)
+    power_smape_train = calculate_smape(train_power_gold, train_power_predict)
+    power_smape_test = calculate_smape(test_power_gold, test_power_predict)
 
     ##### Losses and R² data #####
 
@@ -69,7 +79,7 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="green",
         marker="^",
-        label=f"Train (MAE: {runtime_mae_train:.2f}%)",
+        label=f"Train (MAE: {runtime_mae_train:.3f}, sMAPE: {runtime_smape_train:.2f}%)",
     )
     axes[0].scatter(
         test_runtime_gold,
@@ -77,8 +87,9 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="purple",
         marker="D",
-        label=f"Test (MAE: {runtime_mae_test:.2f}%)",
+        label=f"Test (MAE: {runtime_mae_test:.3f}, sMAPE: {runtime_smape_test:.2f}%)",
     )
+
     all_runtime_values = np.concatenate(
         [
             train_runtime_gold,
@@ -87,7 +98,6 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
             test_runtime_predict,
         ]
     )
-
     min_val = all_runtime_values.min()
     max_val = all_runtime_values.max()
 
@@ -97,8 +107,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         color="red",
         linestyle="--",
     )
-    axes[0].set_xlabel("Gold Runtime")
-    axes[0].set_ylabel("Predicted Runtime")
+    axes[0].set_xlabel("Gold Runtime (standardized)")
+    axes[0].set_ylabel("Predicted Runtime (standardized)")
     axes[0].legend()
     axes[0].grid(True)
 
@@ -109,7 +119,7 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="green",
         marker="^",
-        label=f"Train (MAE: {power_mae_train:.2f}%)",
+        label=f"Train (MAE: {power_mae_train:.3f}, sMAPE: {power_smape_train:.2f}%)",
     )
     axes[1].scatter(
         test_power_gold,
@@ -117,13 +127,17 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="purple",
         marker="D",
-        label=f"Test (MAE: {power_mae_test:.2f}%)",
+        label=f"Test (MAE: {power_mae_test:.3f}, sMAPE: {power_smape_test:.2f}%)",
     )
 
     all_power_values = np.concatenate(
-        [train_power_gold, test_power_gold, train_power_predict, test_power_predict]
+        [
+            train_power_gold,
+            test_power_gold,
+            train_power_predict,
+            test_power_predict,
+        ]
     )
-
     min_val_power = all_power_values.min()
     max_val_power = all_power_values.max()
 
@@ -135,8 +149,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         linestyle="--",
     )
 
-    axes[1].set_xlabel("Gold Power")
-    axes[1].set_ylabel("Predicted Power")
+    axes[1].set_xlabel("Gold Power (standardized)")
+    axes[1].set_ylabel("Predicted Power (standardized)")
     axes[1].legend()
     axes[1].grid(True)
 
