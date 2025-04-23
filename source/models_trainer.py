@@ -189,6 +189,12 @@ def main(config: dict):
 
             # Clip gradients to prevent exploding gradients that cause ValueError: Input contains NaN.
             nn.utils.clip_grad_norm_(ptx_encoder.parameters(), config["max_grad_norm"])
+            nn.utils.clip_grad_norm_(
+                runtime_predictor.parameters(), config["max_grad_norm"]
+            )
+            nn.utils.clip_grad_norm_(
+                power_predictor.parameters(), config["max_grad_norm"]
+            )
 
             ptx_optimizer.step()
             power_optimizer.step()
