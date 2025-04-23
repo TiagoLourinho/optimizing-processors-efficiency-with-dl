@@ -144,7 +144,7 @@ def main(config: dict):
     runtime_optimizer = optim.Adam(
         runtime_predictor.parameters(), lr=config["learning_rate"]
     )
-    criterion = nn.L1Loss()
+    criterion = nn.MSELoss()
 
     # Store info for the results JSON
     train_loss_values = []
@@ -186,6 +186,10 @@ def main(config: dict):
             train_loss += loss.item()
 
             loss.backward()
+
+            # Clip gradients to prevent exploding gradients that cause ValueError: Input contains NaN.
+            nn.utils.clip_grad_norm_(ptx_encoder.parameters(), config["max_grad_norm"])
+
             ptx_optimizer.step()
             power_optimizer.step()
             runtime_optimizer.step()

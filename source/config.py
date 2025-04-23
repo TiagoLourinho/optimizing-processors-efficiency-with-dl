@@ -35,6 +35,7 @@ config = {
         "learning_rate": 0.005,  # float - The optimizer learning rate
         "runtime_loss_weight": 1,  # float - The weight for the runtime loss when combining losses
         "power_loss_weight": 1,  # float - The weight for the power loss when combining losses
+        "max_grad_norm": 10.0,  # float - The maximum gradient norm for gradient clipping
         ##########################################
         ########## Architecture Related ##########
         ##########################################
