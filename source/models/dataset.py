@@ -7,15 +7,9 @@ from torch.utils.data import Dataset
 class CustomDataset(Dataset):
     """Custom dataset that expects data format exported by the benchmarks_to_training_data.py tool"""
 
-    def __init__(self, samples: List, ptx: dict, models_info: dict):
+    def __init__(self, samples: List, all_ptx: dict):
 
-        # The number of numerical features in the PTX
-        self.n_numerical_features = models_info["n_numerical_features"]
-
-        # Standardize before formatting and converting to tensors
-        self.__standardize(samples, ptx)
-
-        self.ptxs: dict[str : dict[str:List]] = self.__format_ptx(ptx)
+        self.all_ptx: dict[str : dict[str:List]] = self.__format_ptx(all_ptx)
         self.data: List = self.__convert_to_tensors(samples)
 
     def __len__(self):
@@ -26,7 +20,7 @@ class CustomDataset(Dataset):
 
         benchmark_name = sample["benchmark_name"]
 
-        split_ptx = self.ptxs[benchmark_name]
+        split_ptx = self.all_ptx[benchmark_name]
 
         # Hardware and performance metrics
         core_freq = sample["graphics_frequency"]
@@ -69,7 +63,7 @@ class CustomDataset(Dataset):
 
         return data
 
-    def __format_ptx(self, ptxs):
+    def __format_ptx(self, all_ptx):
         """
         Splits and formats the ptx data into just two lists of equal size, containing the categorical and numerical parts of the kernels
 
@@ -157,7 +151,7 @@ class CustomDataset(Dataset):
 
         formatted_data = {}
 
-        for benchmark_names, kernels in ptxs.items():
+        for benchmark_names, kernels in all_ptx.items():
             categorical_kernels_parts = []
             numerical_kernels_parts = []
 
@@ -182,125 +176,6 @@ class CustomDataset(Dataset):
 
         return formatted_data
 
-    def __standardize(self, samples: list[dict], ptxs: dict[str:dict]):
-        """Standardizes the data to have 0 mean and 1 std"""
-
-        # Easier to understand while looking at the data format in training_data.json
-        #
-        # The steps are:
-        # 1. Collect all values from the ptx numerical part and the samples
-        # 2. Calculate the mean and std for each feature
-        # 3. Standardize the values using the formula: (value - mean) / std
-        # 4. Replace the original values with the standardized ones
-
-        ######### Initialization #########
-        ptx_numerical_part_all_values: list[list[int]] = [
-            [] for _ in range(self.n_numerical_features)
-        ]
-        mem_freq_all_values: list[int] = []
-        core_freq_all_values: list[int] = []
-        power_all_values: list[float] = []
-        runtime_all_values: list[float] = []
-        ncu_metrics_all_values: dict[str : list[float]] = (
-            {}
-        )  # The list for each metric will be later initialized
-
-        ######### All values collection #########
-        for benchmark_kernels in ptxs.values():
-            for kernel_instructions in benchmark_kernels.values():
-                for instruction in kernel_instructions:
-                    for dimension in range(self.n_numerical_features):
-                        ptx_numerical_part_all_values[dimension].append(
-                            instruction["numerical"][dimension]
-                        )
-
-        for sample in samples:
-            mem_freq_all_values.append(sample["memory_frequency"])
-            core_freq_all_values.append(sample["graphics_frequency"])
-            power_all_values.append(sample["nvml_metrics"]["average_POWER"])
-            runtime_all_values.append(sample["nvml_metrics"]["median_run_time"])
-
-            for metric_name, value in sample["ncu_metrics"].items():
-                if metric_name not in ncu_metrics_all_values:
-                    ncu_metrics_all_values[metric_name] = []
-                ncu_metrics_all_values[metric_name].append(value)
-
-        ######### Convertion to tensors #########
-        ptx_numerical_part_all_values = [
-            torch.tensor(values, dtype=torch.float32)
-            for values in ptx_numerical_part_all_values
-        ]
-        mem_freq_all_values = torch.tensor(mem_freq_all_values, dtype=torch.float32)
-        core_freq_all_values = torch.tensor(core_freq_all_values, dtype=torch.float32)
-        power_all_values = torch.tensor(power_all_values, dtype=torch.float32)
-        runtime_all_values = torch.tensor(runtime_all_values, dtype=torch.float32)
-        ncu_metrics_all_values = {
-            metric_name: torch.tensor(values, dtype=torch.float32)
-            for metric_name, values in ncu_metrics_all_values.items()
-        }
-
-        ######### Means and stds collections #########
-        ptx_numerical_part_means_stds = [
-            {"mean": values.mean(), "std": values.std()}
-            for values in ptx_numerical_part_all_values
-        ]
-        mem_freq_mean, mem_freq_std = (
-            mem_freq_all_values.mean(),
-            mem_freq_all_values.std(),
-        )
-        core_freq_mean, core_freq_std = (
-            core_freq_all_values.mean(),
-            core_freq_all_values.std(),
-        )
-        power_mean, power_std = power_all_values.mean(), power_all_values.std()
-        runtime_mean, runtime_std = runtime_all_values.mean(), runtime_all_values.std()
-        ncu_metrics_means_stds = {
-            metric_name: {"mean": values.mean(), "std": values.std()}
-            for metric_name, values in ncu_metrics_all_values.items()
-        }
-
-        ######### Standardization #########
-
-        standardize = lambda value, mean, std: float((value - mean) / std)
-
-        for benchmark_kernels in ptxs.values():
-            for kernel_instructions in benchmark_kernels.values():
-                for instruction in kernel_instructions:
-                    for dimension in range(self.n_numerical_features):
-                        instruction["numerical"][dimension] = standardize(
-                            instruction["numerical"][dimension],
-                            ptx_numerical_part_means_stds[dimension]["mean"],
-                            ptx_numerical_part_means_stds[dimension]["std"],
-                        )
-
-        for sample in samples:
-            sample["memory_frequency"] = standardize(
-                sample["memory_frequency"],
-                mem_freq_mean,
-                mem_freq_std,
-            )
-            sample["graphics_frequency"] = standardize(
-                sample["graphics_frequency"],
-                core_freq_mean,
-                core_freq_std,
-            )
-            sample["nvml_metrics"]["average_POWER"] = standardize(
-                sample["nvml_metrics"]["average_POWER"],
-                power_mean,
-                power_std,
-            )
-            sample["nvml_metrics"]["median_run_time"] = standardize(
-                sample["nvml_metrics"]["median_run_time"],
-                runtime_mean,
-                runtime_std,
-            )
-            for metric_name, value in sample["ncu_metrics"].items():
-                sample["ncu_metrics"][metric_name] = standardize(
-                    value,
-                    ncu_metrics_means_stds[metric_name]["mean"],
-                    ncu_metrics_means_stds[metric_name]["std"],
-                )
-
 
 if __name__ == "__main__":
     import json
@@ -308,7 +183,7 @@ if __name__ == "__main__":
     with open("training_data.json", "r") as f:
         data = json.load(f)
 
-        dataset = CustomDataset(samples=data["training_data"], ptx=data["ptxs"])
+        dataset = CustomDataset(samples=data["training_data"], all_ptx=data["ptxs"])
 
     item = dataset.__getitem__(0)
     print(item)

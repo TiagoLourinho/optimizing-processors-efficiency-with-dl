@@ -8,11 +8,12 @@ import torch.nn as nn
 import torch.optim as optim
 from config import config
 from models.dataset import CustomDataset
+from models.standardizer import Standardizer
 from models.predictor import NVMLMetricsPredictor
 from models.ptx_encoder import PTXEncoder
 from my_lib.utils import collect_system_info
 from sklearn.metrics import r2_score
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
@@ -71,37 +72,47 @@ def main(config: dict):
     # Loading data
     with open("training_data.json", "r") as f:
         data = json.load(f)
-    full_dataset = CustomDataset(
-        samples=data["training_data"], ptx=data["ptxs"], models_info=data["models_info"]
-    )
+
+    categorical_sizes = data["models_info"]["categorical_sizes"]
+    n_ncu_metrics = data["models_info"]["n_ncu_metrics"]
+    ptx_n_numerical_features = data["models_info"]["n_numerical_features"]
+    all_samples = data["training_data"]
+    all_ptx = data["ptxs"]
 
     # Split into train and test
-    dataset_size = len(full_dataset)
+    dataset_size = len(all_samples)
     indices = list(range(dataset_size))
     random.shuffle(indices)
     split_index = int(config["train_percent"] * dataset_size)
     train_indices = indices[:split_index]
     test_indices = indices[split_index:]
 
-    train_dataset = Subset(full_dataset, train_indices)
-    test_dataset = Subset(full_dataset, test_indices)
+    train_samples = [all_samples[i] for i in train_indices]
+    test_samples = [all_samples[i] for i in test_indices]
+
+    # Standardize data
+    standardizer = Standardizer(ptx_n_numerical_features=ptx_n_numerical_features)
+    standardizer.fit(train_samples=train_samples, all_ptx=all_ptx)
+    standardizer.transform_ptx(all_ptx=all_ptx)
+    standardizer.transform_samples(samples=train_samples)
+    standardizer.transform_samples(samples=test_samples)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=config["batch_size"], shuffle=True
+        CustomDataset(samples=train_samples, all_ptx=all_ptx),
+        batch_size=config["batch_size"],
+        shuffle=True,
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=config["batch_size"], shuffle=True
+        CustomDataset(samples=test_samples, all_ptx=all_ptx),
+        batch_size=config["batch_size"],
+        shuffle=True,
     )
-
-    categorical_sizes = data["models_info"]["categorical_sizes"]
-    n_ncu_metrics = data["models_info"]["n_ncu_metrics"]
-    n_numerical_features = data["models_info"]["n_numerical_features"]
 
     # Initialize models
     ptx_encoder = PTXEncoder(
         vocab_sizes=categorical_sizes,
         embedding_dim=config["categorical_embedding_dim"],
-        numerical_dim=n_numerical_features,
+        numerical_dim=ptx_n_numerical_features,
         hidden_dim=config["lstm_hidden_dim"],
         num_layers=config["lstm_layers"],
         dropout_prob=config["dropout_rate"],
