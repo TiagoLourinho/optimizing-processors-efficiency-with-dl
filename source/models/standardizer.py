@@ -165,6 +165,24 @@ class Standardizer:
                     self.ncu_metrics_means_stds[metric_name]["std"],
                 )
 
+    def inv_transform_targets(
+        self,
+        power: torch.Tensor,
+        runtime: torch.Tensor,
+    ) -> tuple[float, float]:
+        """Inverse transform the power and runtime values to their original scale."""
+
+        if not self.fitted:
+            raise ValueError("Standardizer has not been fitted yet.")
+
+        power = float(power.cpu().item())
+        runtime = float(runtime.cpu().item())
+
+        return (
+            self.__destandardize(power, self.power_mean, self.power_std),
+            self.__destandardize(runtime, self.runtime_mean, self.runtime_std),
+        )
+
     def __standardize(self, value: float, mean: float, std: float) -> float:
         """Standaridzation formula"""
 
@@ -173,3 +191,8 @@ class Standardizer:
             return 0.0
         else:
             return float((value - mean) / std)
+
+    def __destandardize(self, value: float, mean: float, std: float) -> float:
+        """Destandarization formula"""
+
+        return float((value * std) + mean)

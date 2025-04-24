@@ -107,8 +107,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         color="red",
         linestyle="--",
     )
-    axes[0].set_xlabel("Gold Runtime (standardized)")
-    axes[0].set_ylabel("Predicted Runtime (standardized)")
+    axes[0].set_xlabel("Gold Runtime [s]")
+    axes[0].set_ylabel("Predicted Runtime [s]")
     axes[0].legend()
     axes[0].grid(True)
 
@@ -149,8 +149,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         linestyle="--",
     )
 
-    axes[1].set_xlabel("Gold Power (standardized)")
-    axes[1].set_ylabel("Predicted Power (standardized)")
+    axes[1].set_xlabel("Gold Power [W]")
+    axes[1].set_ylabel("Predicted Power [W]")
     axes[1].legend()
     axes[1].grid(True)
 

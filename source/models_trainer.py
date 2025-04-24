@@ -24,6 +24,7 @@ def forward_batch(
     ptx_encoder: PTXEncoder,
     power_predictor: NVMLMetricsPredictor,
     runtime_predictor: NVMLMetricsPredictor,
+    standardizer: Standardizer,
     criterion,
 ):
     split_ptx = batch["split_ptx"]
@@ -46,6 +47,13 @@ def forward_batch(
     loss = (
         config["power_loss_weight"] * power_loss
         + config["runtime_loss_weight"] * runtime_loss
+    )
+
+    power_gold, runtime_gold = standardizer.inv_transform_targets(
+        power=power_gold, runtime=runtime_gold
+    )
+    power_pred, runtime_pred = standardizer.inv_transform_targets(
+        power=power_pred, runtime=runtime_pred
     )
 
     return loss, power_pred, runtime_pred, power_gold, runtime_gold
@@ -181,6 +189,7 @@ def main(config: dict):
                 ptx_encoder=ptx_encoder,
                 power_predictor=power_predictor,
                 runtime_predictor=runtime_predictor,
+                standardizer=standardizer,
                 criterion=criterion,
             )
             train_loss += loss.item()
@@ -226,16 +235,17 @@ def main(config: dict):
                         ptx_encoder=ptx_encoder,
                         power_predictor=power_predictor,
                         runtime_predictor=runtime_predictor,
+                        standardizer=standardizer,
                         criterion=criterion,
                     )
                 )
 
                 test_loss += loss.item()
 
-                all_power_preds.append(float(power_pred.cpu().item()))
-                all_runtime_preds.append(float(runtime_pred.cpu().item()))
-                all_power_golds.append(float(power_gold.cpu().item()))
-                all_runtime_golds.append(float(runtime_gold.cpu().item()))
+                all_power_preds.append(power_pred)
+                all_runtime_preds.append(runtime_pred)
+                all_power_golds.append(power_gold)
+                all_runtime_golds.append(runtime_gold)
 
         test_avg_loss = test_loss / len(test_loader)
         test_loss_values.append(test_avg_loss)
@@ -294,16 +304,17 @@ def main(config: dict):
                     ptx_encoder=ptx_encoder,
                     power_predictor=power_predictor,
                     runtime_predictor=runtime_predictor,
+                    standardizer=standardizer,
                     criterion=criterion,
                 )
 
                 all_predictions[split_key][
                     f'{batch["benchmark_name"]}_at_f_mem={int(batch["memory_frequency"].item())}_f_core={int(batch["graphics_frequency"].item())}'
                 ] = {
-                    "runtime_predict": float(runtime_pred.cpu().item()),
-                    "runtime_gold": float(runtime_gold.cpu().item()),
-                    "power_predict": float(power_pred.cpu().item()),
-                    "power_gold": float(power_gold.cpu().item()),
+                    "runtime_predict": runtime_pred,
+                    "runtime_gold": runtime_gold,
+                    "power_predict": power_pred,
+                    "power_gold": power_gold,
                 }
 
     ########## Save results summary ##########
