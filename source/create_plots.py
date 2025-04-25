@@ -33,28 +33,29 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         test_data, "power_gold", "power_predict"
     )
 
-    ##### Calculate MAE and sMAPE #####
+    ##### Calculate MAE (absolute and percent) #####
 
-    def calculate_mae(gold, predictions):
+    def calculate_mae_absolute(gold, predictions):
         return np.mean(np.abs(gold - predictions))
 
-    def calculate_smape(gold, predictions):
-        numerator = np.abs(gold - predictions)
-        denominator = (np.abs(gold) + np.abs(predictions)) / 2
-        # Suppress divide-by-zero and invalid operation warnings when denominator is zero or NaN
-        with np.errstate(divide="ignore", invalid="ignore"):
-            smape = numerator / denominator
-        return np.nanmean(smape) * 100
+    def calculate_mae_percent(gold, predictions):
+        return np.mean(np.abs(gold - predictions) / gold) * 100
 
-    runtime_mae_train = calculate_mae(train_runtime_gold, train_runtime_predict)
-    runtime_mae_test = calculate_mae(test_runtime_gold, test_runtime_predict)
-    power_mae_train = calculate_mae(train_power_gold, train_power_predict)
-    power_mae_test = calculate_mae(test_power_gold, test_power_predict)
+    runtime_mae_train = calculate_mae_absolute(
+        train_runtime_gold, train_runtime_predict
+    )
+    runtime_mae_test = calculate_mae_absolute(test_runtime_gold, test_runtime_predict)
+    power_mae_train = calculate_mae_absolute(train_power_gold, train_power_predict)
+    power_mae_test = calculate_mae_absolute(test_power_gold, test_power_predict)
 
-    runtime_smape_train = calculate_smape(train_runtime_gold, train_runtime_predict)
-    runtime_smape_test = calculate_smape(test_runtime_gold, test_runtime_predict)
-    power_smape_train = calculate_smape(train_power_gold, train_power_predict)
-    power_smape_test = calculate_smape(test_power_gold, test_power_predict)
+    runtime_mae_train_pct = calculate_mae_percent(
+        train_runtime_gold, train_runtime_predict
+    )
+    runtime_mae_test_pct = calculate_mae_percent(
+        test_runtime_gold, test_runtime_predict
+    )
+    power_mae_train_pct = calculate_mae_percent(train_power_gold, train_power_predict)
+    power_mae_test_pct = calculate_mae_percent(test_power_gold, test_power_predict)
 
     ##### Losses and R² data #####
 
@@ -79,7 +80,7 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="green",
         marker="^",
-        label=f"Train (MAE: {runtime_mae_train:.3f}, sMAPE: {runtime_smape_train:.2f}%)",
+        label=f"Train (MAE: {runtime_mae_train:.3f}, {runtime_mae_train_pct:.2f}%)",
     )
     axes[0].scatter(
         test_runtime_gold,
@@ -87,7 +88,7 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="purple",
         marker="D",
-        label=f"Test (MAE: {runtime_mae_test:.3f}, sMAPE: {runtime_smape_test:.2f}%)",
+        label=f"Test (MAE: {runtime_mae_test:.3f}, {runtime_mae_test_pct:.2f}%)",
     )
 
     all_runtime_values = np.concatenate(
@@ -119,7 +120,7 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="green",
         marker="^",
-        label=f"Train (MAE: {power_mae_train:.3f}, sMAPE: {power_smape_train:.2f}%)",
+        label=f"Train (MAE: {power_mae_train:.3f}, {power_mae_train_pct:.2f}%)",
     )
     axes[1].scatter(
         test_power_gold,
@@ -127,7 +128,7 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         facecolors="none",
         edgecolors="purple",
         marker="D",
-        label=f"Test (MAE: {power_mae_test:.3f}, sMAPE: {power_smape_test:.2f}%)",
+        label=f"Test (MAE: {power_mae_test:.3f}, {power_mae_test_pct:.2f}%)",
     )
 
     all_power_values = np.concatenate(
