@@ -267,6 +267,7 @@ def main(data: dict, config: dict):
                     "\nWarning: Other users logged in during execution of the script. Script might need to run again.\n"
                 )
 
+            data["system_info"]["duration"] = f"{int(hours)}h:{int(minutes)}min"
             data["models_info"] = EncodedInstruction.get_enconding_info()
             data["models_info"]["n_ncu_metrics"] = len(
                 data["training_data"][0]["ncu_metrics"]
