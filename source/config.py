@@ -12,8 +12,8 @@ config = {
         ################################
         ########## GPU config ##########
         ################################
-        "n_closest_core_clocks": 20,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
-        "n_closest_mem_clocks": 2,  # int - The amount of memory clocks to consider when collecting samples, the N closest to the default will be considered
+        "n_closest_core_clocks": 30,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
+        "n_closest_mem_clocks": 3,  # int - The amount of memory clocks to consider when collecting samples, the N closest to the default will be considered
         #################################
         ########## NVML config ##########
         #################################
