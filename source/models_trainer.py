@@ -166,108 +166,116 @@ def main(config: dict):
     best_power_predictor_state = None
     best_runtime_predictor_state = None
 
-    for epoch in range(config["epochs"]):
-        print(f'Epoch {epoch + 1}/{config["epochs"]}')
+    try:
+        for epoch in range(config["epochs"]):
+            print(f'Epoch {epoch + 1}/{config["epochs"]}')
 
-        ########## Train ##########
+            ########## Train ##########
 
-        ptx_encoder.train()
-        power_predictor.train()
-        runtime_predictor.train()
+            ptx_encoder.train()
+            power_predictor.train()
+            runtime_predictor.train()
 
-        train_loss = 0
+            train_loss = 0
 
-        for batch in tqdm(train_loader, desc="Training", leave=False):
-            runtime_optimizer.zero_grad()
-            power_optimizer.zero_grad()
-            ptx_optimizer.zero_grad()
+            for batch in tqdm(train_loader, desc="Training", leave=False):
+                runtime_optimizer.zero_grad()
+                power_optimizer.zero_grad()
+                ptx_optimizer.zero_grad()
 
-            loss, *_ = forward_batch(
-                config=config,
-                batch=batch,
-                device=device,
-                ptx_encoder=ptx_encoder,
-                power_predictor=power_predictor,
-                runtime_predictor=runtime_predictor,
-                standardizer=standardizer,
-                criterion=criterion,
-            )
-            train_loss += loss.item()
+                loss, *_ = forward_batch(
+                    config=config,
+                    batch=batch,
+                    device=device,
+                    ptx_encoder=ptx_encoder,
+                    power_predictor=power_predictor,
+                    runtime_predictor=runtime_predictor,
+                    standardizer=standardizer,
+                    criterion=criterion,
+                )
+                train_loss += loss.item()
 
-            loss.backward()
+                loss.backward()
 
-            # Clip gradients to prevent exploding gradients that cause ValueError: Input contains NaN.
-            nn.utils.clip_grad_norm_(ptx_encoder.parameters(), config["max_grad_norm"])
-            nn.utils.clip_grad_norm_(
-                runtime_predictor.parameters(), config["max_grad_norm"]
-            )
-            nn.utils.clip_grad_norm_(
-                power_predictor.parameters(), config["max_grad_norm"]
-            )
-
-            ptx_optimizer.step()
-            power_optimizer.step()
-            runtime_optimizer.step()
-
-        train_avg_loss = train_loss / len(train_loader)
-        train_loss_values.append(train_avg_loss)
-
-        ########## Evaluate on test set ##########
-
-        ptx_encoder.eval()
-        power_predictor.eval()
-        runtime_predictor.eval()
-
-        test_loss = 0
-
-        # For R² calculation
-        all_power_preds, all_runtime_preds = [], []
-        all_power_golds, all_runtime_golds = [], []
-
-        with torch.no_grad():
-            for batch in tqdm(test_loader, desc="Testing", leave=False):
-
-                loss, power_pred, runtime_pred, power_gold, runtime_gold = (
-                    forward_batch(
-                        config=config,
-                        batch=batch,
-                        device=device,
-                        ptx_encoder=ptx_encoder,
-                        power_predictor=power_predictor,
-                        runtime_predictor=runtime_predictor,
-                        standardizer=standardizer,
-                        criterion=criterion,
-                    )
+                # Clip gradients to prevent exploding gradients that cause ValueError: Input contains NaN.
+                nn.utils.clip_grad_norm_(
+                    ptx_encoder.parameters(), config["max_grad_norm"]
+                )
+                nn.utils.clip_grad_norm_(
+                    runtime_predictor.parameters(), config["max_grad_norm"]
+                )
+                nn.utils.clip_grad_norm_(
+                    power_predictor.parameters(), config["max_grad_norm"]
                 )
 
-                test_loss += loss.item()
+                ptx_optimizer.step()
+                power_optimizer.step()
+                runtime_optimizer.step()
 
-                all_power_preds.append(power_pred)
-                all_runtime_preds.append(runtime_pred)
-                all_power_golds.append(power_gold)
-                all_runtime_golds.append(runtime_gold)
+            train_avg_loss = train_loss / len(train_loader)
 
-        test_avg_loss = test_loss / len(test_loader)
-        test_loss_values.append(test_avg_loss)
+            ########## Evaluate on test set ##########
 
-        test_r2 = (
-            r2_score(all_power_golds, all_power_preds)
-            + r2_score(all_runtime_golds, all_runtime_preds)
-        ) / 2
-        test_r2_values.append(test_r2)
+            ptx_encoder.eval()
+            power_predictor.eval()
+            runtime_predictor.eval()
 
-        print(
-            f"Average losses: Train: {train_avg_loss:.4f}\t Test: {test_avg_loss:.4f}"
-        )
-        print(f"Test R² score: {test_r2}")
+            test_loss = 0
 
-        # Save best performing epoch state
-        if test_r2 > best_test_r2:
-            best_test_r2 = test_r2
-            best_epoch = epoch
-            best_ptx_encoder_state = copy.deepcopy(ptx_encoder.state_dict())
-            best_power_predictor_state = copy.deepcopy(power_predictor.state_dict())
-            best_runtime_predictor_state = copy.deepcopy(runtime_predictor.state_dict())
+            # For R² calculation
+            all_power_preds, all_runtime_preds = [], []
+            all_power_golds, all_runtime_golds = [], []
+
+            with torch.no_grad():
+                for batch in tqdm(test_loader, desc="Testing", leave=False):
+
+                    loss, power_pred, runtime_pred, power_gold, runtime_gold = (
+                        forward_batch(
+                            config=config,
+                            batch=batch,
+                            device=device,
+                            ptx_encoder=ptx_encoder,
+                            power_predictor=power_predictor,
+                            runtime_predictor=runtime_predictor,
+                            standardizer=standardizer,
+                            criterion=criterion,
+                        )
+                    )
+
+                    test_loss += loss.item()
+
+                    all_power_preds.append(power_pred)
+                    all_runtime_preds.append(runtime_pred)
+                    all_power_golds.append(power_gold)
+                    all_runtime_golds.append(runtime_gold)
+
+            test_avg_loss = test_loss / len(test_loader)
+            test_r2 = (
+                r2_score(all_power_golds, all_power_preds)
+                + r2_score(all_runtime_golds, all_runtime_preds)
+            ) / 2
+
+            # Store values for the results JSON
+            train_loss_values.append(train_avg_loss)
+            test_loss_values.append(test_avg_loss)
+            test_r2_values.append(test_r2)
+
+            print(
+                f"Average losses: Train: {train_avg_loss:.4f}\t Test: {test_avg_loss:.4f}"
+            )
+            print(f"Test R² score: {test_r2}")
+
+            # Save best performing epoch state
+            if test_r2 > best_test_r2:
+                best_test_r2 = test_r2
+                best_epoch = epoch
+                best_ptx_encoder_state = copy.deepcopy(ptx_encoder.state_dict())
+                best_power_predictor_state = copy.deepcopy(power_predictor.state_dict())
+                best_runtime_predictor_state = copy.deepcopy(
+                    runtime_predictor.state_dict()
+                )
+    except Exception as e:
+        print(f"Stopping training early due to an error: {e}")
 
     # Save models
     torch.save(best_ptx_encoder_state, "ptx_encoder.pth")
