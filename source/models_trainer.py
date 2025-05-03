@@ -274,7 +274,7 @@ def main(config: dict):
                 best_runtime_predictor_state = copy.deepcopy(
                     runtime_predictor.state_dict()
                 )
-    except Exception as e:
+    except (Exception, KeyboardInterrupt) as e:
         print(f"Stopping training early due to an error: {e}")
 
     # Save models
