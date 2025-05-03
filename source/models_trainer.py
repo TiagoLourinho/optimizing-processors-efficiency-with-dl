@@ -275,7 +275,7 @@ def main(config: dict):
                     runtime_predictor.state_dict()
                 )
     except (Exception, KeyboardInterrupt) as e:
-        print(f"Stopping training early due to an error: {e}")
+        print(f"Stopping training early due to an error: {str(e)}")
 
     # Save models
     torch.save(best_ptx_encoder_state, "ptx_encoder.pth")
