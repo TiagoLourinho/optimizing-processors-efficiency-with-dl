@@ -1,39 +1,11 @@
 import json
 import os
-import sys
 import time
 from datetime import datetime
 from subprocess import CalledProcessError
 
 from config import config
 from dotenv import load_dotenv
-
-
-load_dotenv()
-
-# Use or None to avoid having empty strings if the var isn't defined
-paths = {
-    "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER") or None,
-    "nvcc_path": os.getenv("NVCC_PATH") or None,
-    "ncu_path": os.getenv("NCU_PATH") or None,
-    "ncu_sections_folder": os.getenv("NCU_SECTIONS_FOLDER") or None,
-    "ncu_python_report_folder": os.getenv("NCU_PYTHON_REPORT_FOLDER") or None,
-}
-
-config["benchmarks_to_training_data"].update(paths)
-
-# The ncu_report C++ libraries throw the following error
-# when imported dynamically during BenchmarkMonitor initialization:
-#
-# terminate called after throwing an instance of 'std::bad_cast'
-# what():  std::bad_cast
-#
-# To prevent this, import them at the beginning
-
-sys.path.append(config["benchmarks_to_training_data"]["ncu_python_report_folder"])
-from datetime import datetime
-
-import ncu_report  # type: ignore
 from my_lib.benchmark_monitor import BenchmarkMonitor
 from my_lib.compiler import Compiler
 from my_lib.encoded_instruction import EncodedInstruction
@@ -45,6 +17,18 @@ from my_lib.utils import (
     reduce_clocks_list,
     validate_config,
 )
+
+load_dotenv()
+
+# Use or None to avoid having empty strings if the var isn't defined
+paths = {
+    "benchmarks_folder": os.getenv("BENCHMARKS_FOLDER") or None,
+    "nvcc_path": os.getenv("NVCC_PATH") or None,
+    "nsys_path": os.getenv("NSYS_PATH") or None,
+    "nsys_set": os.getenv("NSYS_SET") or None,
+}
+
+config["benchmarks_to_training_data"].update(paths)
 
 # Set umask to 000 to allow full read, write, and execute for everyone
 # avoiding the normal user not being able to modify the files created
@@ -58,7 +42,7 @@ data: dict = {
     "models_info": {},  # Extra info needed in the pytorch side to create the models
     "default_freqs": {},  # Keep track of the default frequencies found
     "ptxs": {},  # Contains the PTX of every considered benchmark
-    "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/ncu metrics)
+    "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/nsys metrics)
 }
 
 PTX_PATH = "bin/ptx"
@@ -123,10 +107,8 @@ def main(data: dict, config: dict):
                 gpu=gpu,
                 nvml_n_runs=config["nvml_n_runs"],
                 nvml_sampling_frequency=config["nvml_sampling_freq"],
-                ncu_path=config["ncu_path"],
-                ncu_sections_folder=config["ncu_sections_folder"],
-                ncu_report_lib=ncu_report,
-                ncu_set=config["ncu_set"],
+                nsys_path=config["nsys_path"],
+                nsys_set=config["nsys_set"],
             )
 
             data["system_info"] = collect_system_info(gpu_name=gpu.name)
@@ -191,8 +173,7 @@ def main(data: dict, config: dict):
 
                             # Some benchmarks require extra arguments like files and etc that aren't provided, so:
                             # - Either the subprocess will return status 1 while running with NVML (CalledProcessError)
-                            # - Or if it still returns status 0, NCU will produce a warning saying that no kernels were profilled
-                            #   and the NCU report won't be created (FileNotFoundError)
+                            # - Or if it still returns status 0, NSYS report won't be created (FileNotFoundError)
                             try:
                                 (
                                     nvml_metrics,
@@ -202,8 +183,8 @@ def main(data: dict, config: dict):
                                     benchmark_path=executable_path, benchmark_args=args
                                 )
 
-                                ncu_metrics, ncu_did_other_users_login = (
-                                    benchmark_monitor.run_ncu(
+                                nsys_metrics, nsys_did_other_users_login = (
+                                    benchmark_monitor.run_nsys(
                                         benchmark_path=executable_path,
                                         benchmarks_args=args,
                                     )
@@ -219,7 +200,7 @@ def main(data: dict, config: dict):
                             data["did_other_users_login"] = (
                                 data["did_other_users_login"]
                                 or nvml_did_other_users_login
-                                or ncu_did_other_users_login
+                                or nsys_did_other_users_login
                             )
 
                             data["training_data"].append(
@@ -228,7 +209,7 @@ def main(data: dict, config: dict):
                                     "memory_frequency": memory_clock,
                                     "graphics_frequency": graphics_clock,
                                     "nvml_metrics": nvml_metrics,
-                                    "ncu_metrics": ncu_metrics,
+                                    "nsys_metrics": nsys_metrics,
                                 }
                             )
 
@@ -269,8 +250,8 @@ def main(data: dict, config: dict):
 
             data["system_info"]["duration"] = f"{int(hours)}h:{int(minutes)}min"
             data["models_info"] = EncodedInstruction.get_enconding_info()
-            data["models_info"]["n_ncu_metrics"] = len(
-                data["training_data"][0]["ncu_metrics"]
+            data["models_info"]["n_nsys_metrics"] = len(
+                data["training_data"][0]["nsys_metrics"]
             )
 
             training_data_file = "training_data.json"

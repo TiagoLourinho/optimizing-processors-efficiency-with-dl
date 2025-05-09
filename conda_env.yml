@@ -12,6 +12,7 @@ dependencies:
   - scikit-learn
   - python-dotenv
   - matplotlib
+  - pandas
   - pip
   - pip: # Use CUDA 11.8 for better compatibility on INESC Machines
       - torch==2.5.1+cu118

@@ -25,8 +25,8 @@ class CustomDataset(Dataset):
         # Hardware and performance metrics
         core_freq = sample["graphics_frequency"]
         mem_freq = sample["memory_frequency"]
-        ncu_metrics = torch.tensor(
-            list(sample["ncu_metrics"].values()), dtype=torch.float32
+        nsys_metrics = torch.tensor(
+            list(sample["nsys_metrics"].values()), dtype=torch.float32
         )  # Remove metrics names from the dictionary
 
         # Targets
@@ -38,7 +38,7 @@ class CustomDataset(Dataset):
             "split_ptx": split_ptx,
             "graphics_frequency": core_freq,
             "memory_frequency": mem_freq,
-            "ncu_metrics": ncu_metrics,
+            "nsys_metrics": nsys_metrics,
             "power_gold": power_gold,
             "runtime_gold": runtime_gold,
         }

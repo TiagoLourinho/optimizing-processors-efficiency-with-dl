@@ -1,6 +1,5 @@
 # Manually added
 *.json
-ncu_metrics.txt
 example.ptx
 bin/
 results/

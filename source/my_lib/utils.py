@@ -42,7 +42,7 @@ def collect_system_info(gpu_name: str) -> dict:
     }
 
 
-def are_there_other_users(running_ncu=False) -> bool:
+def are_there_other_users(running_nsys=False) -> bool:
     """Checks if there are other users using the machine"""
 
     usernames = [user.name for user in psutil.users()]
@@ -56,8 +56,8 @@ def are_there_other_users(running_ncu=False) -> bool:
     for user in usernames:
         # Only 2 allowed options:
         # - All users are the same
-        # - NCU is running and spawns a root user so also allow that
-        if not (user == first_user or (running_ncu and user == "root")):
+        # - NSYS is running and spawns a root user so also allow that
+        if not (user == first_user or (running_nsys and user == "root")):
             return True
 
     return False
@@ -71,14 +71,12 @@ def validate_config(config: dict):
     keys_config = {
         "benchmarks_folder": get_key_config_dict(required=True, type=str),
         "nvcc_path": get_key_config_dict(required=True, type=str),
-        "ncu_path": get_key_config_dict(required=True, type=str),
-        "ncu_sections_folder": get_key_config_dict(required=False, type=str),
-        "ncu_python_report_folder": get_key_config_dict(required=True, type=str),
+        "nsys_path": get_key_config_dict(required=True, type=str),
         "n_closest_core_clocks": get_key_config_dict(required=True, type=int),
         "n_closest_mem_clocks": get_key_config_dict(required=True, type=int),
         "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
         "nvml_n_runs": get_key_config_dict(required=True, type=int),
-        "ncu_set": get_key_config_dict(required=True, type=str),
+        "nsys_set": get_key_config_dict(required=True, type=str),
     }
 
     if len(keys_config) != len(config):

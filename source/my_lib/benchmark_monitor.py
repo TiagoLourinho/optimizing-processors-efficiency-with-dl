@@ -1,16 +1,14 @@
 import os
+import sqlite3
 import subprocess
-import sys
 import threading
 import time
-from collections import defaultdict
-from types import ModuleType
 
 import numpy as np
+import pandas as pd
 
 from .gpu import GPU, GPUQueries
 from .utils import are_there_other_users
-
 
 RUN_SAMPLES = dict[str, list[float]]
 """ 
@@ -48,10 +46,8 @@ class BenchmarkMonitor:
         gpu: GPU,
         nvml_n_runs: str,
         nvml_sampling_frequency: int,
-        ncu_path: str,
-        ncu_sections_folder: str,
-        ncu_report_lib: ModuleType,
-        ncu_set: str,
+        nsys_path: str,
+        nsys_set: str,
     ) -> None:
 
         self.__gpu = gpu
@@ -67,19 +63,13 @@ class BenchmarkMonitor:
         )  # Limit NVML sampling frequency to 100 Hz
         """ The sampling frequency [Hz] """
 
-        #################### NCU config ####################
+        #################### NSYS config ####################
 
-        self.__ncu_path = ncu_path
-        """ The path of the NCU profiler """
+        self.__nsys_path = nsys_path
+        """ The path of the NSYS profiler """
 
-        self.__ncu_sections_folder = ncu_sections_folder
-        """ The path of the folder to search for NCU sections. If None, then the default path is used. """
-
-        self.__ncu_set = ncu_set
-        """ The name of the set of metrics to collect using NCU. """
-
-        self.__ncu_report = ncu_report_lib
-        """ The NCU python report module (passed via arguments as it needs to be imported first in the main scrip to avoid C++ libs problems) """
+        self.__nsys_set = nsys_set
+        """ The name of the set of metrics to collect using NSYS. """
 
     ################################### Public methods ####################################
 
@@ -197,9 +187,9 @@ class BenchmarkMonitor:
             sampler_thread.join()
             users_thread.join()
 
-    def run_ncu(self, benchmark_path: str, benchmarks_args: list) -> tuple[dict, bool]:
+    def run_nsys(self, benchmark_path: str, benchmarks_args: list) -> tuple[dict, bool]:
         """
-        Runs the benchmark and performs the benchmork using ncu
+        Runs the benchmark and performs the profilling using nsys
 
         Parameters
         ----------
@@ -216,7 +206,7 @@ class BenchmarkMonitor:
         """
 
         benchmark_filename = os.path.basename(benchmark_path)
-        report_filename = os.path.splitext(benchmark_filename)[0] + ".ncu-rep"
+        report_filename = os.path.splitext(benchmark_filename)[0] + ".sqlite"
         report_dir = os.path.join("bin", "reports")
         report_path = os.path.join(report_dir, report_filename)
         os.makedirs(report_dir, exist_ok=True)
@@ -241,34 +231,27 @@ class BenchmarkMonitor:
                     did_other_users_login,
                     users_results_ready_event,
                     terminate_event,
-                    True,  # Let the thread know that NCU will be running
+                    True,  # Let the thread know that NSYS will be running
                 ),
             )
             users_thread.start()
 
-            ############################## Run NCU ##############################
+            ############################## Run NSYS ##############################
 
-            # Docs: https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html#command-line-options
+            # Docs: https://docs.nvidia.com/nsight-systems/UserGuide/index.html#cli-profile-command-switch-options
             # Example command:
-            # sudo /usr/local/cuda-12.4/bin/ncu -f --clock-control none -o bin/tiny.ncu-rep
-            # --section-folder /opt/nvidia/nsight-compute/2024.1.1/sections --set basic bin/tiny.out
+            # sudo nsys profile --force-overwrite=true --gpu-metrics-set=ad10x-gfxt --gpu-metrics-device=0 --export=sqlite
+            # --output=report.sqlite gpupowermodel_v1.0_HPCA2018_microbenchmarks_DRAM_dram.out
 
             command = [
                 "sudo",
-                self.__ncu_path,
-                "-f",
-                "--clock-control",  # clock-control=none allows NVML to externally manage the frequencies
-                "none",
-                "-o",
-                report_path,
-            ]
-
-            if self.__ncu_sections_folder is not None:
-                command += ["--section-folder", self.__ncu_sections_folder]
-
-            command += [
-                "--set",
-                self.__ncu_set,
+                self.__nsys_path,
+                "profile",
+                "--force-overwrite=true",
+                f"--gpu-metrics-set={self.__nsys_set}",
+                "--gpu-metrics-device=0",
+                "--export=sqlite",
+                f"--output={report_path}",
                 benchmark_path,
             ]
 
@@ -283,11 +266,11 @@ class BenchmarkMonitor:
                 stderr=subprocess.PIPE,
             )
 
-            terminate_event.set()  # NCU already stopped collecting the metrics
+            terminate_event.set()  # NSYS already stopped collecting the metrics
 
             ############################## Collect results ##############################
 
-            collected_metrics = self.__aggregate_ncu_metrics(report_path)
+            collected_metrics = self.__aggregate_nsys_metrics(report_path)
 
             # Wait for thread to put the result before collecting it
             users_results_ready_event.wait()
@@ -362,14 +345,16 @@ class BenchmarkMonitor:
 
         return median_values, all_run_samples[index]
 
-    def __aggregate_ncu_metrics(self, report_path: str) -> dict[str, float]:
+    def __aggregate_nsys_metrics(self, db_file: str) -> dict[str, float]:
         """
-        Aggregates the NCU metrics (considering multiple ranges and actions) and returns the dictionary with the metrics
+        Aggregate GPU metrics from the NSYS database
+
+        Database schema: https://docs.nvidia.com/nsight-systems/UserGuide/index.html?highlight=sqlite#sqlite-schema-reference
 
         Parameters
         ----------
         report_path: str
-            The path where to find the NCU report object
+            The path where to find the NSYS report sqlite
 
         Returns
         -------
@@ -377,39 +362,54 @@ class BenchmarkMonitor:
             The dictionary whose keys are the metric's names and values are the metrics itself
         """
 
-        # Examples and docs of using NCU python report interface:
-        # https://docs.nvidia.com/nsight-compute/CustomizationGuide/index.html#basic-usage
+        conn = sqlite3.connect(db_file)
 
-        context = self.__ncu_report.load_report(report_path)
+        try:
 
-        # Identifies launch or device attributes so they can be removed
-        other_type = getattr(self.__ncu_report, "IMetric").MetricType_OTHER
+            # Query the table containing the gpu metric names and ids
+            # selecting only the ones that are throughput metrics as they are relative and not absolute
+            query_target_info = """
+            SELECT sourceId, metricId, metricName
+            FROM TARGET_INFO_GPU_METRICS
+            WHERE metricName LIKE '%[Throughput %]'
+            """
+            df_target_info = pd.read_sql(query_target_info, conn)
 
-        N_total_kernels = sum(
-            [
-                context.range_by_idx(range_i).num_actions()
-                for range_i in range(context.num_ranges())
-            ]
-        )
+            metric_ids = df_target_info["metricId"].unique()
 
-        # Loop through all ranges and actions to aggregate by averaging
-        collected_metrics = defaultdict(float)
-        for ncu_range_i in range(context.num_ranges()):
-            ncu_range = context.range_by_idx(ncu_range_i)
+            # Check if all "sourceId" values are equal (i.e., same GPU)
+            if df_target_info["sourceId"].nunique() != 1:
+                raise ValueError("Not all sourceId values are equal.")
+            source_id = df_target_info["sourceId"].iloc[0]
 
-            for action_j in range(ncu_range.num_actions()):
-                action = ncu_range.action_by_idx(action_j)
+            # Query the gpu metrics (from the selected ones)
+            # and that are from the same GPU (excluding the initial 'EndTimestamp' one)
+            query_gpu_metrics = f"""
+            SELECT metricId, value
+            FROM GPU_METRICS
+            WHERE metricId IN ({','.join(map(str, metric_ids))}) AND typeId = {source_id}
+            """
+            df_gpu_metrics = pd.read_sql(query_gpu_metrics, conn)
 
-                for metric_name in action.metric_names():
-                    metric = action[metric_name]
-                    metric_type = metric.metric_type()
-                    metric_value = metric.value()
+            # Compute the average for each metricId (across all timestamps)
+            grouped_means = (
+                df_gpu_metrics.groupby("metricId")["value"].mean().reset_index()
+            )
 
-                    if metric_type != other_type:
-                        # Average the partials already
-                        collected_metrics[metric_name] += metric_value / N_total_kernels
+            # Add metric names
+            df_merged = pd.merge(
+                grouped_means, df_target_info[["metricId", "metricName"]], on="metricId"
+            )
 
-        return collected_metrics
+            # Ensure consistent ordering
+            df_merged.sort_values("metricId", inplace=True)
+
+            avg_metrics = dict(zip(df_merged["metricName"], df_merged["value"]))
+
+            return avg_metrics
+
+        finally:
+            conn.close()
 
     ################################### Threaded methods ####################################
 
@@ -478,7 +478,7 @@ class BenchmarkMonitor:
         return_value: list[bool],
         results_ready_event: threading.Event,
         terminate_event: threading.Event,
-        running_ncu: bool = False,
+        running_nsys: bool = False,
     ) -> None:
         """Thread that monitors whether or not other users used this machine (appends a boolean to `return_value`)"""
 
@@ -488,7 +488,7 @@ class BenchmarkMonitor:
 
         while not terminate_event.is_set():
 
-            if are_there_other_users(running_ncu=running_ncu):
+            if are_there_other_users(running_nsys=running_nsys):
                 did_other_users_login = True
                 break  # Thread can already exit since other users logged in during the benchmarking
 
