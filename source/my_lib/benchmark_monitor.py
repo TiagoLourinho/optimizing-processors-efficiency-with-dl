@@ -371,7 +371,7 @@ class BenchmarkMonitor:
             query_target_info = """
             SELECT sourceId, metricId, metricName
             FROM TARGET_INFO_GPU_METRICS
-            WHERE metricName LIKE '%[Throughput %]'
+            WHERE metricName LIKE '%[Throughput %]' OR metricName LIKE '%[Ratio %]'
             """
             df_target_info = pd.read_sql(query_target_info, conn)
 
