@@ -1,3 +1,5 @@
+// Modified but based on the original pm_sampling sample from NVIDIA CUPTI
+
 /*
  *  Copyright 2024 NVIDIA Corporation. All rights reserved
  *
