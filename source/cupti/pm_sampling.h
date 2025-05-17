@@ -10,6 +10,7 @@
 #include <fstream>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 
 // CUPTI headers
 #include "helper_cupti.h"
@@ -18,18 +19,30 @@
 #include <cupti_profiler_target.h>
 #include <cupti_profiler_host.h>
 
+// External headers
+#include <json.hpp>
+#include <httplib.h>
+
+using json = nlohmann::json;
+
 struct SamplerRange
 {
-    size_t rangeIndex;
+    uint64_t sampleIndex;
     uint64_t startTimestamp;
     uint64_t endTimestamp;
-    std::unordered_map<std::string, double> metricValues;
+    std::map<std::string, double> metricValues;
 };
 
 class CuptiProfilerHost
 {
     std::string m_chipName;
-    std::vector<SamplerRange> m_samplerRanges;
+    SamplerRange m_mostRecentSamplerRange;
+    /*  m_mostRecentSamplerRange will be accessed by 2 threads so a mutex is needed:
+            - the main thread will read it to send it to the python script
+            - the decode thread will write on it
+    */
+    std::mutex m_samplerRangeMutex;
+    uint64_t m_samplesCollected = 0;
     CUpti_Profiler_Host_Object *m_pHostObject = nullptr;
 
 public:
@@ -86,8 +99,10 @@ public:
 
     CUptiResult EvaluateCounterData(CUpti_PmSampling_Object *pSamplingObject, size_t rangeIndex, std::vector<const char *> metricsList, std::vector<uint8_t> &counterDataImage)
     {
-        m_samplerRanges.push_back(SamplerRange{});
-        SamplerRange &samplerRange = m_samplerRanges.back();
+        std::lock_guard<std::mutex> lock(m_samplerRangeMutex);
+
+        m_mostRecentSamplerRange = SamplerRange{};
+        SamplerRange &samplerRange = m_mostRecentSamplerRange;
 
         CUpti_PmSampling_CounterData_GetSampleInfo_Params getSampleInfoParams = {CUpti_PmSampling_CounterData_GetSampleInfo_Params_STRUCT_SIZE};
         getSampleInfoParams.pPmSamplingObject = pSamplingObject;
@@ -98,6 +113,8 @@ public:
 
         samplerRange.startTimestamp = getSampleInfoParams.startTimestamp;
         samplerRange.endTimestamp = getSampleInfoParams.endTimestamp;
+        samplerRange.sampleIndex = m_samplesCollected;
+        m_samplesCollected++;
 
         std::vector<double> metricValues(metricsList.size());
         CUpti_Profiler_Host_EvaluateToGpuValues_Params evalauateToGpuValuesParams{CUpti_Profiler_Host_EvaluateToGpuValues_Params_STRUCT_SIZE};
@@ -118,71 +135,18 @@ public:
         return CUPTI_SUCCESS;
     }
 
-    void PrintSampleRanges()
+    /* Returns the most recent sample in JSON format */
+    json getMostRecentSamplerRangeAsJson()
     {
-        std::cout << "Total num of Samples: " << m_samplerRanges.size() << "\n";
-        std::cout << "Printing first 50 samples:" << "\n";
-        for (size_t sampleIndex = 0; sampleIndex < 50; ++sampleIndex)
-        {
-            const auto &samplerRange = m_samplerRanges[sampleIndex];
-            std::cout << "Sample Index: " << sampleIndex << "\n";
-            std::cout << "Timestamps -> Start: [" << samplerRange.startTimestamp << "] \tEnd: [" << samplerRange.endTimestamp << "]" << "\n";
-            std::cout << "-----------------------------------------------------------------------------------\n";
-            for (const auto &metric : samplerRange.metricValues)
-            {
-                std::cout << std::fixed << std::setprecision(3);
-                std::cout << std::setw(50) << std::left << metric.first;
-                std::cout << std::setw(30) << std::right << metric.second << "\n";
-            }
-            std::cout << "-----------------------------------------------------------------------------------\n\n";
-        }
-    }
+        std::lock_guard<std::mutex> lock(m_samplerRangeMutex);
+        json j;
 
-    CUptiResult GetSupportedBaseMetrics(std::vector<std::string> &metricsList)
-    {
-        for (size_t metricTypeIndex = 0; metricTypeIndex < CUPTI_METRIC_TYPE__COUNT; ++metricTypeIndex)
-        {
-            CUpti_Profiler_Host_GetBaseMetrics_Params getBaseMetricsParams{CUpti_Profiler_Host_GetBaseMetrics_Params_STRUCT_SIZE};
-            getBaseMetricsParams.pHostObject = m_pHostObject;
-            getBaseMetricsParams.metricType = (CUpti_MetricType)metricTypeIndex;
-            CUPTI_API_CALL(cuptiProfilerHostGetBaseMetrics(&getBaseMetricsParams));
+        j["sampleIndex"] = m_mostRecentSamplerRange.sampleIndex;
+        j["startTimestamp"] = m_mostRecentSamplerRange.startTimestamp;
+        j["endTimestamp"] = m_mostRecentSamplerRange.endTimestamp;
+        j["metricValues"] = m_mostRecentSamplerRange.metricValues;
 
-            for (size_t metricIndex = 0; metricIndex < getBaseMetricsParams.numMetrics; ++metricIndex)
-            {
-                metricsList.push_back(getBaseMetricsParams.ppMetricNames[metricIndex]);
-            }
-        }
-        return CUPTI_SUCCESS;
-    }
-
-    CUptiResult GetMetricProperties(const std::string &metricName, CUpti_MetricType &metricType, std::string &metricDescription)
-    {
-        CUpti_Profiler_Host_GetMetricProperties_Params getMetricPropertiesParams{CUpti_Profiler_Host_GetMetricProperties_Params_STRUCT_SIZE};
-        getMetricPropertiesParams.pHostObject = m_pHostObject;
-        getMetricPropertiesParams.pMetricName = metricName.c_str();
-        CUPTI_API_CALL(cuptiProfilerHostGetMetricProperties(&getMetricPropertiesParams));
-        metricType = getMetricPropertiesParams.metricType;
-        metricDescription = getMetricPropertiesParams.pDescription;
-        return CUPTI_SUCCESS;
-    }
-
-    CUptiResult GetSubMetrics(const std::string &metricName, std::vector<std::string> &subMetricsList)
-    {
-        CUpti_MetricType metricType;
-        std::string metricDescription;
-        CUPTI_API_CALL(GetMetricProperties(metricName, metricType, metricDescription));
-
-        CUpti_Profiler_Host_GetSubMetrics_Params getSubMetricsParams{CUpti_Profiler_Host_GetSubMetrics_Params_STRUCT_SIZE};
-        getSubMetricsParams.pHostObject = m_pHostObject;
-        getSubMetricsParams.pMetricName = metricName.c_str();
-        getSubMetricsParams.metricType = metricType;
-        CUPTI_API_CALL(cuptiProfilerHostGetSubMetrics(&getSubMetricsParams));
-
-        for (size_t subMetricIndex = 0; subMetricIndex < getSubMetricsParams.numOfSubmetrics; ++subMetricIndex)
-        {
-            subMetricsList.push_back(getSubMetricsParams.ppSubMetrics[subMetricIndex]);
-        }
-        return CUPTI_SUCCESS;
+        return j;
     }
 
 private:
