@@ -34,8 +34,10 @@ class Standardizer:
 
         mem_freq_all_values: list[int] = []
         core_freq_all_values: list[int] = []
-        power_all_values: list[float] = []
         runtime_all_values: list[float] = []
+        nvml_metrics_all_values: dict[str : list[float]] = (
+            {}
+        )  # The list for each metric will be later initialized
         cupti_metrics_all_values: dict[str : list[float]] = (
             {}
         )  # The list for each metric will be later initialized
@@ -50,10 +52,18 @@ class Standardizer:
             seen_benchmarks_ptx.add(sample["benchmark_name"])
             mem_freq_all_values.append(sample["memory_frequency"])
             core_freq_all_values.append(sample["graphics_frequency"])
-            power_all_values.append(sample["nvml_metrics"]["average_POWER"])
-            runtime_all_values.append(sample["nvml_metrics"]["average_run_time"])
+            runtime_all_values.append(sample["benchmark_metrics"]["runtime"])
 
-            for metric_name, value in sample["cupti_metrics"].items():
+            for metric_name, value in sample["benchmark_metrics"][
+                "nvml_metrics"
+            ].items():
+                if metric_name not in nvml_metrics_all_values:
+                    nvml_metrics_all_values[metric_name] = []
+                nvml_metrics_all_values[metric_name].append(value)
+
+            for metric_name, value in sample["benchmark_metrics"][
+                "cupti_metrics"
+            ].items():
                 if metric_name not in cupti_metrics_all_values:
                     cupti_metrics_all_values[metric_name] = []
                 cupti_metrics_all_values[metric_name].append(value)
@@ -75,8 +85,11 @@ class Standardizer:
 
         mem_freq_all_values = torch.tensor(mem_freq_all_values, dtype=torch.float32)
         core_freq_all_values = torch.tensor(core_freq_all_values, dtype=torch.float32)
-        power_all_values = torch.tensor(power_all_values, dtype=torch.float32)
         runtime_all_values = torch.tensor(runtime_all_values, dtype=torch.float32)
+        nvml_metrics_all_values = {
+            metric_name: torch.tensor(values, dtype=torch.float32)
+            for metric_name, values in nvml_metrics_all_values.items()
+        }
         cupti_metrics_all_values = {
             metric_name: torch.tensor(values, dtype=torch.float32)
             for metric_name, values in cupti_metrics_all_values.items()
@@ -96,14 +109,14 @@ class Standardizer:
             core_freq_all_values.mean(),
             core_freq_all_values.std(),
         )
-        self.power_mean, self.power_std = (
-            power_all_values.mean(),
-            power_all_values.std(),
-        )
         self.runtime_mean, self.runtime_std = (
             runtime_all_values.mean(),
             runtime_all_values.std(),
         )
+        self.nvml_metrics_means_stds = {
+            metric_name: {"mean": values.mean(), "std": values.std()}
+            for metric_name, values in nvml_metrics_all_values.items()
+        }
         self.cupti_metrics_means_stds = {
             metric_name: {"mean": values.mean(), "std": values.std()}
             for metric_name, values in cupti_metrics_all_values.items()
@@ -148,21 +161,30 @@ class Standardizer:
                 self.core_freq_mean,
                 self.core_freq_std,
             )
-            sample["nvml_metrics"]["average_POWER"] = self.__standardize(
-                sample["nvml_metrics"]["average_POWER"],
-                self.power_mean,
-                self.power_std,
-            )
-            sample["nvml_metrics"]["average_run_time"] = self.__standardize(
-                sample["nvml_metrics"]["average_run_time"],
+            sample["benchmark_metrics"]["runtime"] = self.__standardize(
+                sample["benchmark_metrics"]["runtime"],
                 self.runtime_mean,
                 self.runtime_std,
             )
-            for metric_name, value in sample["cupti_metrics"].items():
-                sample["cupti_metrics"][metric_name] = self.__standardize(
-                    value,
-                    self.cupti_metrics_means_stds[metric_name]["mean"],
-                    self.cupti_metrics_means_stds[metric_name]["std"],
+            for metric_name, value in sample["benchmark_metrics"][
+                "nvml_metrics"
+            ].items():
+                sample["benchmark_metrics"]["nvml_metrics"][metric_name] = (
+                    self.__standardize(
+                        value,
+                        self.nvml_metrics_means_stds[metric_name]["mean"],
+                        self.nvml_metrics_means_stds[metric_name]["std"],
+                    )
+                )
+            for metric_name, value in sample["benchmark_metrics"][
+                "cupti_metrics"
+            ].items():
+                sample["benchmark_metrics"]["cupti_metrics"][metric_name] = (
+                    self.__standardize(
+                        value,
+                        self.cupti_metrics_means_stds[metric_name]["mean"],
+                        self.cupti_metrics_means_stds[metric_name]["std"],
+                    )
                 )
 
     def inv_transform_targets(
@@ -179,7 +201,11 @@ class Standardizer:
         runtime = float(runtime.cpu().item())
 
         return (
-            self.__destandardize(power, self.power_mean, self.power_std),
+            self.__destandardize(
+                power,
+                self.nvml_metrics_means_stds["POWER"]["mean"],
+                self.nvml_metrics_means_stds["POWER"]["std"],
+            ),
             self.__destandardize(runtime, self.runtime_mean, self.runtime_std),
         )
 

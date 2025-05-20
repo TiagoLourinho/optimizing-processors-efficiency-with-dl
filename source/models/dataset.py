@@ -26,12 +26,13 @@ class CustomDataset(Dataset):
         core_freq = sample["graphics_frequency"]
         mem_freq = sample["memory_frequency"]
         cupti_metrics = torch.tensor(
-            list(sample["cupti_metrics"].values()), dtype=torch.float32
+            list(sample["benchmark_metrics"]["cupti_metrics"].values()),
+            dtype=torch.float32,
         )  # Remove metrics names from the dictionary
 
         # Targets
-        power_gold = sample["nvml_metrics"]["average_POWER"]
-        runtime_gold = sample["nvml_metrics"]["average_run_time"]
+        power_gold = sample["benchmark_metrics"]["nvml_metrics"]["POWER"]
+        runtime_gold = sample["benchmark_metrics"]["runtime"]
 
         return {
             "benchmark_name": benchmark_name,
