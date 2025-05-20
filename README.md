@@ -16,7 +16,7 @@
  
 ### Benchmarks to training data tool
 
-To run the tool that converts the benchmarks to the training data (PTX and metrics collected) run:
+To run the tool that converts the benchmark to the training data (PTX and metrics collected) first compile the CUPTI script using `source/cupti/Makefile` and then run:
 
 `sudo <PYTHON-PATH> source/benchmarks_to_training_data.py`
 

@@ -1,6 +1,5 @@
 import socket
 from datetime import datetime
-import numpy as np
 
 import cpuinfo
 import psutil
@@ -42,7 +41,7 @@ def collect_system_info(gpu_name: str) -> dict:
     }
 
 
-def are_there_other_users(running_nsys=False) -> bool:
+def are_there_other_users() -> bool:
     """Checks if there are other users using the machine"""
 
     usernames = [user.name for user in psutil.users()]
@@ -54,10 +53,7 @@ def are_there_other_users(running_nsys=False) -> bool:
     # Check if all user instances belong to the same user
     first_user = usernames[0]
     for user in usernames:
-        # Only 2 allowed options:
-        # - All users are the same
-        # - NSYS is running and spawns a root user so also allow that
-        if not (user == first_user or (running_nsys and user == "root")):
+        if not user == first_user:
             return True
 
     return False
@@ -71,12 +67,10 @@ def validate_config(config: dict):
     keys_config = {
         "benchmarks_folder": get_key_config_dict(required=True, type=str),
         "nvcc_path": get_key_config_dict(required=True, type=str),
-        "nsys_path": get_key_config_dict(required=True, type=str),
         "n_closest_core_clocks": get_key_config_dict(required=True, type=int),
         "n_closest_mem_clocks": get_key_config_dict(required=True, type=int),
-        "nvml_sampling_freq": get_key_config_dict(required=True, type=int),
-        "nvml_n_runs": get_key_config_dict(required=True, type=int),
-        "nsys_set": get_key_config_dict(required=True, type=str),
+        "sampling_freq": get_key_config_dict(required=True, type=int),
+        "n_runs": get_key_config_dict(required=True, type=int),
     }
 
     if len(keys_config) != len(config):

@@ -30,7 +30,7 @@ def forward_batch(
     split_ptx = batch["split_ptx"]
     core_freq = batch["graphics_frequency"].to(device)
     mem_freq = batch["memory_frequency"].to(device)
-    nsys_metrics = batch["nsys_metrics"].to(device)
+    cupti_metrics = batch["cupti_metrics"].to(device)
     power_gold = batch["power_gold"].to(device)
     runtime_gold = batch["runtime_gold"].to(device)
 
@@ -38,8 +38,8 @@ def forward_batch(
     numerical_parts = [t.to(device) for t in split_ptx["numerical_kernels_parts"]]
     ptx_vec = ptx_encoder(categorical_parts, numerical_parts)
 
-    power_pred = power_predictor(ptx_vec, core_freq, mem_freq, nsys_metrics)
-    runtime_pred = runtime_predictor(ptx_vec, core_freq, mem_freq, nsys_metrics)
+    power_pred = power_predictor(ptx_vec, core_freq, mem_freq, cupti_metrics)
+    runtime_pred = runtime_predictor(ptx_vec, core_freq, mem_freq, cupti_metrics)
 
     power_loss = criterion(power_pred, power_gold)
     runtime_loss = criterion(runtime_pred, runtime_gold)
@@ -82,7 +82,7 @@ def main(config: dict):
         data = json.load(f)
 
     categorical_sizes = data["models_info"]["categorical_sizes"]
-    n_nsys_metrics = data["models_info"]["n_nsys_metrics"]
+    n_cupti_metrics = data["models_info"]["n_cupti_metrics"]
     ptx_n_numerical_features = data["models_info"]["n_numerical_features"]
     all_samples = data["training_data"]
     all_ptx = data["ptxs"]
@@ -128,20 +128,20 @@ def main(config: dict):
 
     power_predictor = NVMLMetricsPredictor(
         ptx_dim=config["lstm_hidden_dim"],
-        nsys_dim=n_nsys_metrics,
+        cupti_dim=n_cupti_metrics,
         number_of_layers=config["fnn_layers"],
         hidden_dim=config["fnn_hidden_dim"],
         dropout_rate=config["dropout_rate"],
-        use_nsys_metrics=config["use_nsys_metrics"],
+        use_cupti_metrics=config["use_cupti_metrics"],
     ).to(device)
 
     runtime_predictor = NVMLMetricsPredictor(
         ptx_dim=config["lstm_hidden_dim"],
-        nsys_dim=n_nsys_metrics,
+        cupti_dim=n_cupti_metrics,
         number_of_layers=config["fnn_layers"],
         hidden_dim=config["fnn_hidden_dim"],
         dropout_rate=config["dropout_rate"],
-        use_nsys_metrics=config["use_nsys_metrics"],
+        use_cupti_metrics=config["use_cupti_metrics"],
     ).to(device)
 
     # Optimizers and loss function

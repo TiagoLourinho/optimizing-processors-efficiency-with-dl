@@ -36,7 +36,7 @@ class Standardizer:
         core_freq_all_values: list[int] = []
         power_all_values: list[float] = []
         runtime_all_values: list[float] = []
-        nsys_metrics_all_values: dict[str : list[float]] = (
+        cupti_metrics_all_values: dict[str : list[float]] = (
             {}
         )  # The list for each metric will be later initialized
         ptx_numerical_part_all_values: list[list[int]] = [
@@ -51,12 +51,12 @@ class Standardizer:
             mem_freq_all_values.append(sample["memory_frequency"])
             core_freq_all_values.append(sample["graphics_frequency"])
             power_all_values.append(sample["nvml_metrics"]["average_POWER"])
-            runtime_all_values.append(sample["nvml_metrics"]["median_run_time"])
+            runtime_all_values.append(sample["nvml_metrics"]["average_run_time"])
 
-            for metric_name, value in sample["nsys_metrics"].items():
-                if metric_name not in nsys_metrics_all_values:
-                    nsys_metrics_all_values[metric_name] = []
-                nsys_metrics_all_values[metric_name].append(value)
+            for metric_name, value in sample["cupti_metrics"].items():
+                if metric_name not in cupti_metrics_all_values:
+                    cupti_metrics_all_values[metric_name] = []
+                cupti_metrics_all_values[metric_name].append(value)
 
         for benchmark_name, benchmark_kernels in all_ptx.items():
 
@@ -77,9 +77,9 @@ class Standardizer:
         core_freq_all_values = torch.tensor(core_freq_all_values, dtype=torch.float32)
         power_all_values = torch.tensor(power_all_values, dtype=torch.float32)
         runtime_all_values = torch.tensor(runtime_all_values, dtype=torch.float32)
-        nsys_metrics_all_values = {
+        cupti_metrics_all_values = {
             metric_name: torch.tensor(values, dtype=torch.float32)
-            for metric_name, values in nsys_metrics_all_values.items()
+            for metric_name, values in cupti_metrics_all_values.items()
         }
         ptx_numerical_part_all_values = [
             torch.tensor(values, dtype=torch.float32)
@@ -104,9 +104,9 @@ class Standardizer:
             runtime_all_values.mean(),
             runtime_all_values.std(),
         )
-        self.nsys_metrics_means_stds = {
+        self.cupti_metrics_means_stds = {
             metric_name: {"mean": values.mean(), "std": values.std()}
-            for metric_name, values in nsys_metrics_all_values.items()
+            for metric_name, values in cupti_metrics_all_values.items()
         }
         self.ptx_numerical_part_means_stds = [
             {"mean": values.mean(), "std": values.std()}
@@ -153,16 +153,16 @@ class Standardizer:
                 self.power_mean,
                 self.power_std,
             )
-            sample["nvml_metrics"]["median_run_time"] = self.__standardize(
-                sample["nvml_metrics"]["median_run_time"],
+            sample["nvml_metrics"]["average_run_time"] = self.__standardize(
+                sample["nvml_metrics"]["average_run_time"],
                 self.runtime_mean,
                 self.runtime_std,
             )
-            for metric_name, value in sample["nsys_metrics"].items():
-                sample["nsys_metrics"][metric_name] = self.__standardize(
+            for metric_name, value in sample["cupti_metrics"].items():
+                sample["cupti_metrics"][metric_name] = self.__standardize(
                     value,
-                    self.nsys_metrics_means_stds[metric_name]["mean"],
-                    self.nsys_metrics_means_stds[metric_name]["std"],
+                    self.cupti_metrics_means_stds[metric_name]["mean"],
+                    self.cupti_metrics_means_stds[metric_name]["std"],
                 )
 
     def inv_transform_targets(
@@ -186,7 +186,7 @@ class Standardizer:
     def __standardize(self, value: float, mean: float, std: float) -> float:
         """Standaridzation formula"""
 
-        # Avoid division by zero in some nsys metrics that are constant
+        # Avoid division by zero in some cupti metrics that are constant
         if std == 0.0:
             return 0.0
         else:

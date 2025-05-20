@@ -6,21 +6,16 @@ config = {
         ###########################
         "benchmarks_folder": None,  # str - The folder where the CUDA benchmarks are located
         "nvcc_path": None,  # str - The path of the NVCC compiler
-        "nsys_path": None,  # str - The path of the NSYS profiler
         ################################
         ########## GPU config ##########
         ################################
-        "n_closest_core_clocks": 30,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
-        "n_closest_mem_clocks": 3,  # int - The amount of memory clocks to consider when collecting samples, the N closest to the default will be considered
+        "n_closest_core_clocks": 50,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
+        "n_closest_mem_clocks": 5,  # int - The amount of memory clocks to consider when collecting samples, the N closest to the default will be considered
         #################################
-        ########## NVML config ##########
+        ######## Sampling config ########
         #################################
-        "nvml_sampling_freq": 100,  # int [Hz] - The NVML sampling frequency to use (maximum is 100 Hz).
-        "nvml_n_runs": 3,  # int [count] - The amount of times to run the program to get the median GPU metrics.
-        ################################
-        ########## NSYS config ##########
-        ################################
-        "nsys_set": None,  # str - The name of the set of metrics to collect using NSYS.
+        "sampling_freq": 100,  # int [Hz] - The sampling frequency to use (maximum is 100 Hz).
+        "n_runs": 3,  # int [count] - The amount of times to run the program to get the average GPU metrics.
     },
     "models_trainer": {
         ######################################
@@ -40,7 +35,7 @@ config = {
         "categorical_embedding_dim": 16,  # int - Dimension of the embeddings for categorical features
         "lstm_hidden_dim": 128,  # int - Hidden dimension of the LSTM
         "lstm_layers": 2,  # int - Number of layers in the LSTM
-        "use_nsys_metrics": True,  # bool - Whether to use NSYS metrics or not (runtime information)
+        "use_cupti_metrics": True,  # bool - Whether to use CUPTI metrics or not (runtime information)
         "fnn_layers": 2,  # int - Number of fully connected layers
         "fnn_hidden_dim": 256,  # int - Number of hidden units in fully connected layers
         "dropout_rate": 0.0,  # float - Dropout rate for regularization

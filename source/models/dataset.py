@@ -25,20 +25,20 @@ class CustomDataset(Dataset):
         # Hardware and performance metrics
         core_freq = sample["graphics_frequency"]
         mem_freq = sample["memory_frequency"]
-        nsys_metrics = torch.tensor(
-            list(sample["nsys_metrics"].values()), dtype=torch.float32
+        cupti_metrics = torch.tensor(
+            list(sample["cupti_metrics"].values()), dtype=torch.float32
         )  # Remove metrics names from the dictionary
 
         # Targets
         power_gold = sample["nvml_metrics"]["average_POWER"]
-        runtime_gold = sample["nvml_metrics"]["median_run_time"]
+        runtime_gold = sample["nvml_metrics"]["average_run_time"]
 
         return {
             "benchmark_name": benchmark_name,
             "split_ptx": split_ptx,
             "graphics_frequency": core_freq,
             "memory_frequency": mem_freq,
-            "nsys_metrics": nsys_metrics,
+            "cupti_metrics": cupti_metrics,
             "power_gold": power_gold,
             "runtime_gold": runtime_gold,
         }
