@@ -41,6 +41,9 @@ class Standardizer:
         cupti_metrics_all_values: dict[str : list[float]] = (
             {}
         )  # The list for each metric will be later initialized
+        targets_all_values: dict[str : list[float]] = (
+            {}
+        )  # The list for each metric will be later initialized
         ptx_numerical_part_all_values: list[list[int]] = [
             [] for _ in range(self.ptx_n_numerical_features)
         ]
@@ -68,6 +71,11 @@ class Standardizer:
                     cupti_metrics_all_values[metric_name] = []
                 cupti_metrics_all_values[metric_name].append(value)
 
+            for target_name, value in sample["targets"].items():
+                if target_name not in targets_all_values:
+                    targets_all_values[target_name] = []
+                targets_all_values[target_name].append(value)
+
         for benchmark_name, benchmark_kernels in all_ptx.items():
 
             # Only consider the ptx that appear on the training samples
@@ -93,6 +101,10 @@ class Standardizer:
         cupti_metrics_all_values = {
             metric_name: torch.tensor(values, dtype=torch.float32)
             for metric_name, values in cupti_metrics_all_values.items()
+        }
+        targets_all_values = {
+            target_name: torch.tensor(values, dtype=torch.float32)
+            for target_name, values in targets_all_values.items()
         }
         ptx_numerical_part_all_values = [
             torch.tensor(values, dtype=torch.float32)
@@ -120,6 +132,10 @@ class Standardizer:
         self.cupti_metrics_means_stds = {
             metric_name: {"mean": values.mean(), "std": values.std()}
             for metric_name, values in cupti_metrics_all_values.items()
+        }
+        self.targets_means_stds = {
+            target_name: {"mean": values.mean(), "std": values.std()}
+            for target_name, values in targets_all_values.items()
         }
         self.ptx_numerical_part_means_stds = [
             {"mean": values.mean(), "std": values.std()}
@@ -187,26 +203,37 @@ class Standardizer:
                     )
                 )
 
+            for target_name, value in sample["targets"].items():
+                sample["targets"][target_name] = self.__standardize(
+                    value,
+                    self.targets_means_stds[target_name]["mean"],
+                    self.targets_means_stds[target_name]["std"],
+                )
+
     def inv_transform_targets(
         self,
-        power: torch.Tensor,
-        runtime: torch.Tensor,
+        memory_scaling_factor: torch.Tensor,
+        graphics_scaling_factor: torch.Tensor,
     ) -> tuple[float, float]:
-        """Inverse transform the power and runtime values to their original scale."""
+        """Inverse transform the scaling factors values to their original scale."""
 
         if not self.fitted:
             raise ValueError("Standardizer has not been fitted yet.")
 
-        power = float(power.cpu().item())
-        runtime = float(runtime.cpu().item())
+        memory_scaling_factor = float(memory_scaling_factor.cpu().item())
+        graphics_scaling_factor = float(graphics_scaling_factor.cpu().item())
 
         return (
             self.__destandardize(
-                power,
-                self.nvml_metrics_means_stds["POWER"]["mean"],
-                self.nvml_metrics_means_stds["POWER"]["std"],
+                memory_scaling_factor,
+                self.targets_means_stds["memory_scaling_factor"]["mean"],
+                self.targets_means_stds["memory_scaling_factor"]["std"],
             ),
-            self.__destandardize(runtime, self.runtime_mean, self.runtime_std),
+            self.__destandardize(
+                graphics_scaling_factor,
+                self.targets_means_stds["graphics_scaling_factor"]["mean"],
+                self.targets_means_stds["graphics_scaling_factor"]["std"],
+            ),
         )
 
     def __standardize(self, value: float, mean: float, std: float) -> float:

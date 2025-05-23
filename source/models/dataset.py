@@ -2,6 +2,7 @@ from typing import List
 
 import torch
 from torch.utils.data import Dataset
+from copy import copy
 
 
 class CustomDataset(Dataset):
@@ -23,25 +24,25 @@ class CustomDataset(Dataset):
         split_ptx = self.all_ptx[benchmark_name]
 
         # Hardware and performance metrics
-        core_freq = sample["graphics_frequency"]
+        graphics_freq = sample["graphics_frequency"]
         mem_freq = sample["memory_frequency"]
+        nvml_metrics = torch.tensor(
+            list(sample["benchmark_metrics"]["nvml_metrics"].values()),
+            dtype=torch.float32,
+        )  # Remove metrics names from the dictionary
         cupti_metrics = torch.tensor(
             list(sample["benchmark_metrics"]["cupti_metrics"].values()),
             dtype=torch.float32,
         )  # Remove metrics names from the dictionary
 
-        # Targets
-        power_gold = sample["benchmark_metrics"]["nvml_metrics"]["POWER"]
-        runtime_gold = sample["benchmark_metrics"]["runtime"]
-
         return {
             "benchmark_name": benchmark_name,
             "split_ptx": split_ptx,
-            "graphics_frequency": core_freq,
+            "graphics_frequency": graphics_freq,
             "memory_frequency": mem_freq,
+            "nvml_metrics": nvml_metrics,
             "cupti_metrics": cupti_metrics,
-            "power_gold": power_gold,
-            "runtime_gold": runtime_gold,
+            "targets": copy(sample["targets"]),
         }
 
     def __convert_to_tensors(self, data):

@@ -19,18 +19,18 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         predict = [v[key_predict] for v in data_dict.values()]
         return np.array(gold), np.array(predict)
 
-    train_runtime_gold, train_runtime_predict = extract_data(
-        train_data, "runtime_gold", "runtime_predict"
+    train_graphics_gold, train_graphics_predict = extract_data(
+        train_data, "graphics_gold", "graphics_predict"
     )
-    test_runtime_gold, test_runtime_predict = extract_data(
-        test_data, "runtime_gold", "runtime_predict"
+    test_graphics_gold, test_graphics_predict = extract_data(
+        test_data, "graphics_gold", "graphics_predict"
     )
 
-    train_power_gold, train_power_predict = extract_data(
-        train_data, "power_gold", "power_predict"
+    train_memory_gold, train_memory_predict = extract_data(
+        train_data, "memory_gold", "memory_predict"
     )
-    test_power_gold, test_power_predict = extract_data(
-        test_data, "power_gold", "power_predict"
+    test_memory_gold, test_memory_predict = extract_data(
+        test_data, "memory_gold", "memory_predict"
     )
 
     ##### Calculate MAE (absolute and percent) #####
@@ -41,21 +41,25 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
     def calculate_mae_percent(gold, predictions):
         return np.mean(np.abs(gold - predictions) / gold) * 100
 
-    runtime_mae_train = calculate_mae_absolute(
-        train_runtime_gold, train_runtime_predict
+    graphics_mae_train = calculate_mae_absolute(
+        train_graphics_gold, train_graphics_predict
     )
-    runtime_mae_test = calculate_mae_absolute(test_runtime_gold, test_runtime_predict)
-    power_mae_train = calculate_mae_absolute(train_power_gold, train_power_predict)
-    power_mae_test = calculate_mae_absolute(test_power_gold, test_power_predict)
+    graphics_mae_test = calculate_mae_absolute(
+        test_graphics_gold, test_graphics_predict
+    )
+    memory_mae_train = calculate_mae_absolute(train_memory_gold, train_memory_predict)
+    memory_mae_test = calculate_mae_absolute(test_memory_gold, test_memory_predict)
 
-    runtime_mae_train_pct = calculate_mae_percent(
-        train_runtime_gold, train_runtime_predict
+    graphics_mae_train_pct = calculate_mae_percent(
+        train_graphics_gold, train_graphics_predict
     )
-    runtime_mae_test_pct = calculate_mae_percent(
-        test_runtime_gold, test_runtime_predict
+    graphics_mae_test_pct = calculate_mae_percent(
+        test_graphics_gold, test_graphics_predict
     )
-    power_mae_train_pct = calculate_mae_percent(train_power_gold, train_power_predict)
-    power_mae_test_pct = calculate_mae_percent(test_power_gold, test_power_predict)
+    memory_mae_train_pct = calculate_mae_percent(
+        train_memory_gold, train_memory_predict
+    )
+    memory_mae_test_pct = calculate_mae_percent(test_memory_gold, test_memory_predict)
 
     ##### Losses and R² data #####
 
@@ -73,34 +77,34 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
 
     fig, axes = plt.subplots(1, 3, figsize=(24, 6))
 
-    # Runtime plot
+    # Graphics plot
     axes[0].scatter(
-        train_runtime_gold,
-        train_runtime_predict,
+        train_graphics_gold,
+        train_graphics_predict,
         facecolors="none",
         edgecolors="green",
         marker="^",
-        label=f"Train (MAE: {runtime_mae_train:.3f}, {runtime_mae_train_pct:.2f}%)",
+        label=f"Train (MAE: {graphics_mae_train:.3f}, {graphics_mae_train_pct:.2f}%)",
     )
     axes[0].scatter(
-        test_runtime_gold,
-        test_runtime_predict,
+        test_graphics_gold,
+        test_graphics_predict,
         facecolors="none",
         edgecolors="purple",
         marker="D",
-        label=f"Test (MAE: {runtime_mae_test:.3f}, {runtime_mae_test_pct:.2f}%)",
+        label=f"Test (MAE: {graphics_mae_test:.3f}, {graphics_mae_test_pct:.2f}%)",
     )
 
-    all_runtime_values = np.concatenate(
+    all_graphics_values = np.concatenate(
         [
-            train_runtime_gold,
-            test_runtime_gold,
-            train_runtime_predict,
-            test_runtime_predict,
+            train_graphics_gold,
+            test_graphics_gold,
+            train_graphics_predict,
+            test_graphics_predict,
         ]
     )
-    min_val = all_runtime_values.min()
-    max_val = all_runtime_values.max()
+    min_val = all_graphics_values.min()
+    max_val = all_graphics_values.max()
 
     axes[0].plot(
         [min_val, max_val],
@@ -108,50 +112,50 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         color="red",
         linestyle="--",
     )
-    axes[0].set_xlabel("Gold Runtime [s]")
-    axes[0].set_ylabel("Predicted Runtime [s]")
+    axes[0].set_xlabel("Gold Graphics")
+    axes[0].set_ylabel("Predicted Graphics")
     axes[0].legend()
     axes[0].grid(True)
 
-    # Power plot
+    # Memory plot
     axes[1].scatter(
-        train_power_gold,
-        train_power_predict,
+        train_memory_gold,
+        train_memory_predict,
         facecolors="none",
         edgecolors="green",
         marker="^",
-        label=f"Train (MAE: {power_mae_train:.3f}, {power_mae_train_pct:.2f}%)",
+        label=f"Train (MAE: {memory_mae_train:.3f}, {memory_mae_train_pct:.2f}%)",
     )
     axes[1].scatter(
-        test_power_gold,
-        test_power_predict,
+        test_memory_gold,
+        test_memory_predict,
         facecolors="none",
         edgecolors="purple",
         marker="D",
-        label=f"Test (MAE: {power_mae_test:.3f}, {power_mae_test_pct:.2f}%)",
+        label=f"Test (MAE: {memory_mae_test:.3f}, {memory_mae_test_pct:.2f}%)",
     )
 
-    all_power_values = np.concatenate(
+    all_memory_values = np.concatenate(
         [
-            train_power_gold,
-            test_power_gold,
-            train_power_predict,
-            test_power_predict,
+            train_memory_gold,
+            test_memory_gold,
+            train_memory_predict,
+            test_memory_predict,
         ]
     )
-    min_val_power = all_power_values.min()
-    max_val_power = all_power_values.max()
+    min_val = all_memory_values.min()
+    max_val = all_memory_values.max()
 
     # Plot ideal line
     axes[1].plot(
-        [min_val_power, max_val_power],
-        [min_val_power, max_val_power],
+        [min_val, max_val],
+        [min_val, max_val],
         color="red",
         linestyle="--",
     )
 
-    axes[1].set_xlabel("Gold Power [W]")
-    axes[1].set_ylabel("Predicted Power [W]")
+    axes[1].set_xlabel("Gold Memory")
+    axes[1].set_ylabel("Predicted Memory")
     axes[1].legend()
     axes[1].grid(True)
 
@@ -186,8 +190,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
     # Add frequency levels as a text box
     freq_text = (
         r"$\bf{Frequency\ levels:}$"
-        f"\n- Memory: {data['config']['memory_levels']['mem']}"
-        f"\n- Core: {data['config']['memory_levels']['core']}"
+        f"\n- Memory: {data['config']['frequency_levels']['mem']}"
+        f"\n- Core: {data['config']['frequency_levels']['core']}"
     )
     plt.gcf().text(0.5, -0.05, freq_text, fontsize=10, ha="center")
 
