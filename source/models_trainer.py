@@ -196,6 +196,26 @@ def main(config: dict):
         use_dynamic_info=config["use_dynamic_info"],
     ).to(device)
 
+    models_parameters = {
+        "ptx_encoder": {
+            "vocab_sizes": categorical_sizes,
+            "embedding_dim": config["categorical_embedding_dim"],
+            "numerical_dim": ptx_n_numerical_features,
+            "hidden_dim": config["lstm_hidden_dim"],
+            "num_layers": config["lstm_layers"],
+            "dropout_prob": config["dropout_rate"],
+        },
+        "predictors": {
+            "ptx_dim": config["lstm_hidden_dim"],
+            "nvml_dim": n_nvml_metrics,
+            "cupti_dim": n_cupti_metrics,
+            "number_of_layers": config["fnn_layers"],
+            "hidden_dim": config["fnn_hidden_dim"],
+            "dropout_rate": config["dropout_rate"],
+            "use_dynamic_info": config["use_dynamic_info"],
+        },
+    }
+
     # Optimizers and loss function
     ptx_optimizer = optim.Adam(ptx_encoder.parameters(), lr=config["learning_rate"])
     memory_optimizer = optim.Adam(
@@ -213,10 +233,10 @@ def main(config: dict):
 
     # To restore best model states
     best_test_r2 = float("-inf")
-    best_epoch = None
-    best_ptx_encoder_state = None
-    best_memory_predictor_state = None
-    best_graphics_predictor_state = None
+    best_epoch = -1
+    best_ptx_encoder_state = copy.deepcopy(ptx_encoder.state_dict())
+    best_memory_predictor_state = copy.deepcopy(memory_predictor.state_dict())
+    best_graphics_predictor_state = copy.deepcopy(graphics_predictor.state_dict())
 
     try:
         for epoch in range(config["epochs"]):
@@ -333,6 +353,9 @@ def main(config: dict):
     torch.save(best_ptx_encoder_state, "ptx_encoder.pth")
     torch.save(best_memory_predictor_state, "memory_predictor.pth")
     torch.save(best_graphics_predictor_state, "graphics_predictor.pth")
+    standardizer.save("standardizer.pkl")
+    with open("models_parameters.json", "w") as f:
+        json.dump(models_parameters, f, indent=4)
 
     print(f"\nModels from best epoch {best_epoch+1} saved successfully!")
 

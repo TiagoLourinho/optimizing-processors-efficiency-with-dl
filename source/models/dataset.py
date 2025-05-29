@@ -10,8 +10,8 @@ class CustomDataset(Dataset):
 
     def __init__(self, samples: List, all_ptx: dict):
 
-        self.all_ptx: dict[str : dict[str:List]] = self.__format_ptx(all_ptx)
-        self.data: List = self.__convert_to_tensors(samples)
+        self.all_ptx: dict[str : dict[str:List]] = CustomDataset.format_ptx(all_ptx)
+        self.data: List = CustomDataset.convert_to_tensors(samples)
 
     def __len__(self):
         return len(self.data)
@@ -45,12 +45,14 @@ class CustomDataset(Dataset):
             "targets": copy(sample["targets"]),
         }
 
-    def __convert_to_tensors(self, data):
+    @staticmethod
+    def convert_to_tensors(data):
         """Recursively converts lists of numbers and single numbers in a dictionary to PyTorch tensors."""
 
         if isinstance(data, dict):
             return {
-                key: self.__convert_to_tensors(value) for key, value in data.items()
+                key: CustomDataset.convert_to_tensors(value)
+                for key, value in data.items()
             }
 
         elif isinstance(data, list):
@@ -58,14 +60,15 @@ class CustomDataset(Dataset):
             if all(isinstance(x, (int, float)) for x in data):
                 return torch.tensor(data, dtype=torch.float32)
             else:
-                return [self.__convert_to_tensors(item) for item in data]
+                return [CustomDataset.convert_to_tensors(item) for item in data]
 
         elif isinstance(data, (int, float)):
             return torch.tensor([data], dtype=torch.float32)
 
         return data
 
-    def __format_ptx(self, all_ptx):
+    @staticmethod
+    def format_ptx(all_ptx):
         """
         Splits and formats the ptx data into just two lists of equal size, containing the categorical and numerical parts of the kernels
 

@@ -1,4 +1,5 @@
 import torch
+import pickle
 
 
 class Standardizer:
@@ -17,6 +18,21 @@ class Standardizer:
     def __init__(self, ptx_n_numerical_features: int):
         self.fitted = False
         self.ptx_n_numerical_features = ptx_n_numerical_features
+
+    def save(self, path: str) -> None:
+        """Saves the fitted Standardizer instance to a file using pickle."""
+
+        if not self.fitted:
+            raise RuntimeError("Standardizer must be fitted before saving.")
+
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(path: str) -> "Standardizer":
+        """Loads a Standardizer instance from a pickle file."""
+        with open(path, "rb") as f:
+            return pickle.load(f)
 
     def fit(
         self,

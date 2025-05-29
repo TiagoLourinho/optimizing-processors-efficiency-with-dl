@@ -106,10 +106,11 @@ class BenchmarkMonitor:
         self.__n_runs = n_runs
         """ The number of times to run the benchmark (to calculate the average results) """
 
-        self.__sampling_frequency = min(
-            sampling_frequency, 100
-        )  # Limit sampling frequency to 100 Hz because of NVML
-        """ The sampling frequency [Hz] """
+        if sampling_frequency is not None:
+            self.__sampling_frequency = min(
+                sampling_frequency, 100
+            )  # Limit sampling frequency to 100 Hz because of NVML
+            """ The sampling frequency [Hz] """
 
     def __enter__(self):
         """Starts CUPTI"""
@@ -245,6 +246,24 @@ class BenchmarkMonitor:
 
         return self.__aggregate_all_runs_samples(all_run_data=results)
 
+    def get_nvml_metrics(self) -> dict[str, float]:
+        """Returns the NVML metrics collected from the GPU"""
+        return {
+            metric.name: self.__gpu.query(query_type=metric)
+            for metric in self.__NVML_METRICS_NAMES
+        }
+
+    def get_cupti_metrics(self) -> dict[str, float]:
+        """Returns the CUPTI metrics collected from the GPU"""
+        try:
+            response = requests.get(self.__CUPTI_METRICS_URL)
+            return response.json()[
+                "metricValues"
+            ]  # timestamps and sample index are not needed
+        except Exception as e:
+            print(str(e))
+            raise
+
     ################################### Data post processing ####################################
 
     def __aggregate_all_runs_samples(
@@ -362,8 +381,8 @@ class BenchmarkMonitor:
                 while sample_event.is_set() and not terminate_event.is_set():
 
                     sample = {
-                        "nvml_metrics": self.__get_nvml_metrics(),
-                        "cupti_metrics": self.__get_cupti_metrics(),
+                        "nvml_metrics": self.get_nvml_metrics(),
+                        "cupti_metrics": self.get_cupti_metrics(),
                     }
                     samples.append(sample)
 
@@ -397,21 +416,3 @@ class BenchmarkMonitor:
 
             if i > 5:
                 print(f"Have been waiting for the GPU to cooldown for {i} s...")
-
-    def __get_nvml_metrics(self) -> dict[str, float]:
-        """Returns the NVML metrics collected from the GPU"""
-        return {
-            metric.name: self.__gpu.query(query_type=metric)
-            for metric in self.__NVML_METRICS_NAMES
-        }
-
-    def __get_cupti_metrics(self) -> dict[str, float]:
-        """Returns the CUPTI metrics collected from the GPU"""
-        try:
-            response = requests.get(self.__CUPTI_METRICS_URL)
-            return response.json()[
-                "metricValues"
-            ]  # timestamps and sample index are not needed
-        except Exception as e:
-            print(str(e))
-            raise

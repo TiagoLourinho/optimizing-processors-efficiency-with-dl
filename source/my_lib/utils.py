@@ -88,3 +88,9 @@ def validate_config(config: dict):
                 raise ValueError(f"Key {key} should be defined.")
         elif not isinstance(value, type):
             raise ValueError(f"Key {key} has invalid type.")
+
+
+def closest_value(numbers: list[int], target: int) -> int:
+    if not numbers:
+        return None
+    return min(numbers, key=lambda x: abs(x - target))
