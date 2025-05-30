@@ -400,7 +400,7 @@ class BenchmarkMonitor:
     def __wait_to_cooldown(self):
         """Enters a loop that waits for the gpu to cooldown"""
 
-        max_temp = 50  # ºC
+        max_temp = 60  # ºC
         max_util = 5  # %
 
         i = 0
