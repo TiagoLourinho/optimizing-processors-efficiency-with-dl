@@ -210,41 +210,46 @@ class BenchmarkMonitor:
         )
         sampler_thread.start()
 
-        ########## Run benchmark and collect results ##########
-        results = []
+        try:
+            ########## Run benchmark and collect results ##########
+            results = []
 
-        for _ in range(self.__n_runs):
+            for _ in range(self.__n_runs):
 
-            # Clean events and return list before running
-            sample_event.clear()
-            sampler_results_ready_event.clear()
-            sampler_output.clear()
+                # Clean events and return list before running
+                sample_event.clear()
+                sampler_results_ready_event.clear()
+                sampler_output.clear()
 
-            # Start sampling and run the application
-            command = [f"./{benchmark_path}"]
-            if benchmark_args is not None:
-                command += benchmark_args
+                # Start sampling and run the application
+                command = [f"./{benchmark_path}"]
+                if benchmark_args is not None:
+                    command += benchmark_args
 
-            self.__wait_to_cooldown()
-            sample_event.set()
-            subprocess.run(
-                command,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            sample_event.clear()
+                self.__wait_to_cooldown()
+                sample_event.set()
+                subprocess.run(
+                    command,
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                sample_event.clear()
 
-            # Wait for the other thread to append the samples and then collect them
-            sampler_results_ready_event.wait()
-            results.append(sampler_output[-1])
+                # Wait for the other thread to append the samples and then collect them
+                sampler_results_ready_event.wait()
+                results.append(sampler_output[-1])
 
-        ########## Post processing ##########
+            ########## Post processing ##########
 
-        terminate_event.set()
-        sampler_thread.join()
+            terminate_event.set()
+            sampler_thread.join()
 
-        return self.__aggregate_all_runs_samples(all_run_data=results)
+            return self.__aggregate_all_runs_samples(all_run_data=results)
+        finally:
+            ########## Cleanup ##########
+            terminate_event.set()
+            sampler_thread.join()
 
     def get_nvml_metrics(self) -> dict[str, float]:
         """Returns the NVML metrics collected from the GPU"""

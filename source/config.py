@@ -9,7 +9,7 @@ config = {
         ################################
         ########## GPU config ##########
         ################################
-        "n_closest_core_clocks": 50,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
+        "n_closest_core_clocks": 25,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
         "n_closest_mem_clocks": 5,  # int - The amount of memory clocks to consider when collecting samples, the N closest to the default will be considered
         #################################
         ######## Sampling config ########
