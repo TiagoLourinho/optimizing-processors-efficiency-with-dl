@@ -62,17 +62,13 @@ def get_ptx_embedding(
 def get_new_frequencies(
     gpu: GPU,
     standardizer: Standardizer,
-    benchmark_monitor: BenchmarkMonitor,
+    nvml_metrics: dict,
+    cupti_metrics: dict,
     memory_predictor: FrequencyScalingPredictor,
     graphics_predictor: FrequencyScalingPredictor,
     ptx_embedding: torch.Tensor,
     device: torch.device,
 ):
-
-    nvml_metrics = benchmark_monitor.get_nvml_metrics()
-    cupti_metrics = benchmark_monitor.get_cupti_metrics()
-
-    power = nvml_metrics["POWER"]
 
     # Create a dummy sample to use the standardizer
     dummy_samples = [
@@ -145,34 +141,42 @@ def get_new_frequencies(
         target=float(core_freq.cpu().item()) * graphics_scaling_factor,
     )
 
-    return new_memory_freq, new_core_freq, power
+    return new_memory_freq, new_core_freq
 
 
 def main(
-    ptx_file: str, executable_file: str, device: torch.device, models_parameters: dict
+    ptx_file: str,
+    executable_file: str,
+    device: torch.device,
+    models_parameters: dict,
+    control_clocks: bool,
 ):
     # Load models
-    standardizer = Standardizer.load("standardizer.pkl")
-    memory_predictor = FrequencyScalingPredictor(**models_parameters["predictors"])
-    memory_predictor.load_state_dict(
-        torch.load("memory_predictor.pth", weights_only=True)
-    )
-    memory_predictor.to(device)
-    memory_predictor.eval()
-    graphics_predictor = FrequencyScalingPredictor(**models_parameters["predictors"])
-    graphics_predictor.load_state_dict(
-        torch.load("graphics_predictor.pth", weights_only=True)
-    )
-    graphics_predictor.to(device)
-    graphics_predictor.eval()
+    if control_clocks:
+        standardizer = Standardizer.load("standardizer.pkl")
+        memory_predictor = FrequencyScalingPredictor(**models_parameters["predictors"])
+        memory_predictor.load_state_dict(
+            torch.load("memory_predictor.pth", weights_only=True)
+        )
+        memory_predictor.to(device)
+        memory_predictor.eval()
+        graphics_predictor = FrequencyScalingPredictor(
+            **models_parameters["predictors"]
+        )
+        graphics_predictor.load_state_dict(
+            torch.load("graphics_predictor.pth", weights_only=True)
+        )
+        graphics_predictor.to(device)
+        graphics_predictor.eval()
 
-    # Get the PTX embedding
-    ptx_embedding = get_ptx_embedding(
-        ptx_file=ptx_file,
-        standardizer=standardizer,
-        models_parameters=models_parameters,
-        device=device,
-    )
+        # Get the PTX embedding
+        ptx_embedding = get_ptx_embedding(
+            ptx_file=ptx_file,
+            standardizer=standardizer,
+            models_parameters=models_parameters,
+            device=device,
+        )
+
     with GPU() as gpu:
         with BenchmarkMonitor(
             gpu=gpu,
@@ -187,7 +191,6 @@ def main(
 
             print("Starting the application...")
 
-            # Run the application and optimize the ED²P
             power_samples = []
             start = time.perf_counter()
             application_process = subprocess.Popen(
@@ -197,6 +200,8 @@ def main(
             )
             while True:
                 retcode = application_process.poll()
+
+                # Application finished
                 if retcode is not None:
                     end = time.perf_counter()
                     final_runtime = end - start
@@ -213,31 +218,36 @@ def main(
 
                 time.sleep(FREQUENCY_UPDATE_INTERVAL)
 
-                new_memory_freq, new_core_freq, power = get_new_frequencies(
-                    gpu=gpu,
-                    standardizer=standardizer,
-                    benchmark_monitor=benchmark_monitor,
-                    memory_predictor=memory_predictor,
-                    graphics_predictor=graphics_predictor,
-                    ptx_embedding=ptx_embedding,
-                    device=device,
-                )
+                nvml_metrics = benchmark_monitor.get_nvml_metrics()
+                cupti_metrics = benchmark_monitor.get_cupti_metrics()
 
-                power_samples.append(power)
+                power_samples.append(nvml_metrics["POWER"])
 
-                try:
-                    gpu.memory_clk = new_memory_freq
-                    gpu.graphics_clk = new_core_freq
-
-                    # Sometimes the driver changes the graphics clock after changing the graphics clock
-                    assert gpu.memory_clk == new_memory_freq
-                    assert gpu.graphics_clk == new_core_freq
-                except (GPUClockChangingError, AssertionError):
-
-                    # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
-                    print(
-                        f"\nCouldn't change to memory_clk={new_memory_freq} and graphics_clock={new_core_freq}..."
+                if control_clocks:
+                    new_memory_freq, new_core_freq = get_new_frequencies(
+                        gpu=gpu,
+                        standardizer=standardizer,
+                        nvml_metrics=nvml_metrics,
+                        cupti_metrics=cupti_metrics,
+                        memory_predictor=memory_predictor,
+                        graphics_predictor=graphics_predictor,
+                        ptx_embedding=ptx_embedding,
+                        device=device,
                     )
+
+                    try:
+                        gpu.memory_clk = new_memory_freq
+                        gpu.graphics_clk = new_core_freq
+
+                        # Sometimes the driver changes the graphics clock after changing the graphics clock
+                        assert gpu.memory_clk == new_memory_freq
+                        assert gpu.graphics_clk == new_core_freq
+                    except (GPUClockChangingError, AssertionError):
+
+                        # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
+                        print(
+                            f"\nCouldn't change to memory_clk={new_memory_freq} and graphics_clock={new_core_freq}..."
+                        )
 
 
 if __name__ == "__main__":
@@ -250,6 +260,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--exec_path", type=str, required=True, help="Path to the executable file"
+    )
+    parser.add_argument(
+        "--get_baseline",
+        default=False,
+        action="store_true",
+        help="Run the benchmark without using the optimizer, clocks are managed by the driver freely (default: False)",
     )
     args = parser.parse_args()
 
@@ -273,4 +289,5 @@ if __name__ == "__main__":
         executable_file=args.exec_path,
         device=device,
         models_parameters=models_parameters,
+        control_clocks=not args.get_baseline,
     )
