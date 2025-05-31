@@ -208,11 +208,11 @@ def main(
                     final_power = float(np.mean(power_samples))
                     ed2p = get_ed2p(power=final_power, runtime=final_runtime)
 
-                    print(f"Application finished with return code: {retcode}")
+                    print(f"\nApplication finished with return code: {retcode}")
                     print(
                         f"Runtime: {final_runtime:.2f} seconds, Average power: {final_power:.2f} W"
                     )
-                    print(f"ED²P: {ed2p:.2f} J/s²")
+                    print(f"ED²P: {ed2p:.2f} J/s²\n")
 
                     break
 
