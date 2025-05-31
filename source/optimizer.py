@@ -14,7 +14,7 @@ from models.standardizer import Standardizer
 from my_lib.PTX_parser import PTXParser
 from my_lib.gpu import GPU, GPUClockChangingError
 from my_lib.benchmark_monitor import BenchmarkMonitor
-from my_lib.utils import closest_value
+from my_lib.utils import closest_value, get_ed2p
 
 
 FREQUENCY_UPDATE_INTERVAL = 0.1  # seconds
@@ -68,6 +68,12 @@ def get_new_frequencies(
     ptx_embedding: torch.Tensor,
     device: torch.device,
 ):
+
+    nvml_metrics = benchmark_monitor.get_nvml_metrics()
+    cupti_metrics = benchmark_monitor.get_cupti_metrics()
+
+    power = nvml_metrics["POWER"]
+
     # Create a dummy sample to use the standardizer
     dummy_samples = [
         {
@@ -76,8 +82,8 @@ def get_new_frequencies(
             "graphics_frequency": gpu.graphics_clk,
             "benchmark_metrics": {
                 "runtime": -1,  # Placeholder for runtime
-                "nvml_metrics": benchmark_monitor.get_nvml_metrics(),
-                "cupti_metrics": benchmark_monitor.get_cupti_metrics(),
+                "nvml_metrics": nvml_metrics,
+                "cupti_metrics": cupti_metrics,
             },
             "targets": {},  # Placeholder for targets
         }
@@ -139,7 +145,7 @@ def get_new_frequencies(
         target=float(core_freq.cpu().item()) * graphics_scaling_factor,
     )
 
-    return new_memory_freq, new_core_freq
+    return new_memory_freq, new_core_freq, power
 
 
 def main(
@@ -182,6 +188,8 @@ def main(
             print("Starting the application...")
 
             # Run the application and optimize the ED²P
+            power_samples = []
+            start = time.perf_counter()
             application_process = subprocess.Popen(
                 [f"./{executable_file}"],
                 stdout=subprocess.PIPE,
@@ -190,12 +198,22 @@ def main(
             while True:
                 retcode = application_process.poll()
                 if retcode is not None:
-                    print(f"Application exited with return code: {retcode}")
+                    end = time.perf_counter()
+                    final_runtime = end - start
+                    final_power = float(np.mean(power_samples))
+                    ed2p = get_ed2p(power=final_power, runtime=final_runtime)
+
+                    print(f"Application finished with return code: {retcode}")
+                    print(
+                        f"Runtime: {final_runtime:.2f} seconds, Average power: {final_power:.2f} W"
+                    )
+                    print(f"ED²P: {ed2p:.2f} J/s²")
+
                     break
 
                 time.sleep(FREQUENCY_UPDATE_INTERVAL)
 
-                new_memory_freq, new_core_freq = get_new_frequencies(
+                new_memory_freq, new_core_freq, power = get_new_frequencies(
                     gpu=gpu,
                     standardizer=standardizer,
                     benchmark_monitor=benchmark_monitor,
@@ -204,6 +222,8 @@ def main(
                     ptx_embedding=ptx_embedding,
                     device=device,
                 )
+
+                power_samples.append(power)
 
                 try:
                     gpu.memory_clk = new_memory_freq

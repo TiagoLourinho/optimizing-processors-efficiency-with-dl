@@ -94,3 +94,8 @@ def closest_value(numbers: list[int], target: int) -> int:
     if not numbers:
         return None
     return min(numbers, key=lambda x: abs(x - target))
+
+
+def get_ed2p(power: float, runtime: float):
+    # ED²P = E * D² = P * D * D² = P * D³
+    return power * (runtime**3)

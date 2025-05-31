@@ -11,7 +11,7 @@ from models.dataset import CustomDataset
 from models.predictor import FrequencyScalingPredictor
 from models.ptx_encoder import PTXEncoder
 from models.standardizer import Standardizer
-from my_lib.utils import collect_system_info
+from my_lib.utils import collect_system_info, get_ed2p
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -19,9 +19,6 @@ from tqdm import tqdm
 
 def add_targets(samples: list) -> None:
     """Adds the targets to the samples list (in place)"""
-
-    # ED²P = E * D² = P * D * D² = P * D³
-    get_ed2p = lambda power, runtime: power * (runtime**3)
 
     get_scaling_factor = lambda real_freq, optimal_freq: optimal_freq / real_freq
 
@@ -35,8 +32,8 @@ def add_targets(samples: list) -> None:
             optimal_freqs_per_benchmark[benchmark_name] = {}
 
         ed2p_value = get_ed2p(
-            sample["benchmark_metrics"]["nvml_metrics"]["POWER"],
-            sample["benchmark_metrics"]["runtime"],
+            power=sample["benchmark_metrics"]["nvml_metrics"]["POWER"],
+            runtime=sample["benchmark_metrics"]["runtime"],
         )
         if ed2p_value < min_ed2p_per_benchmark[benchmark_name]:
             min_ed2p_per_benchmark[benchmark_name] = ed2p_value
