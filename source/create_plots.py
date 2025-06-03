@@ -20,17 +20,17 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         return np.array(gold), np.array(predict)
 
     train_graphics_gold, train_graphics_predict = extract_data(
-        train_data, "graphics_gold", "graphics_predict"
+        train_data, "graphics_gold", "graphics_pred"
     )
     test_graphics_gold, test_graphics_predict = extract_data(
-        test_data, "graphics_gold", "graphics_predict"
+        test_data, "graphics_gold", "graphics_pred"
     )
 
     train_memory_gold, train_memory_predict = extract_data(
-        train_data, "memory_gold", "memory_predict"
+        train_data, "memory_gold", "memory_pred"
     )
     test_memory_gold, test_memory_predict = extract_data(
-        test_data, "memory_gold", "memory_predict"
+        test_data, "memory_gold", "memory_pred"
     )
 
     ##### Calculate MAE (absolute and percent) #####
