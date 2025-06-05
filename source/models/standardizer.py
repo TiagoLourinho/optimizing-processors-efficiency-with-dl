@@ -239,16 +239,23 @@ class Standardizer:
         memory_scaling_factor = float(memory_scaling_factor.cpu().item())
         graphics_scaling_factor = float(graphics_scaling_factor.cpu().item())
 
+        # Use max to ensure non-negative scaling factors
         return (
-            self.__destandardize(
-                memory_scaling_factor,
-                self.targets_means_stds["memory_scaling_factor"]["mean"],
-                self.targets_means_stds["memory_scaling_factor"]["std"],
+            max(
+                0,
+                self.__destandardize(
+                    memory_scaling_factor,
+                    self.targets_means_stds["memory_scaling_factor"]["mean"],
+                    self.targets_means_stds["memory_scaling_factor"]["std"],
+                ),
             ),
-            self.__destandardize(
-                graphics_scaling_factor,
-                self.targets_means_stds["graphics_scaling_factor"]["mean"],
-                self.targets_means_stds["graphics_scaling_factor"]["std"],
+            max(
+                0,
+                self.__destandardize(
+                    graphics_scaling_factor,
+                    self.targets_means_stds["graphics_scaling_factor"]["mean"],
+                    self.targets_means_stds["graphics_scaling_factor"]["std"],
+                ),
             ),
         )
 

@@ -70,12 +70,16 @@ def get_new_frequencies(
     device: torch.device,
 ):
 
+    # Save values before standardization
+    original_memory_freq = gpu.memory_clk
+    original_graphics_freq = gpu.graphics_clk
+
     # Create a dummy sample to use the standardizer
     dummy_samples = [
         {
             "benchmark_name": "application",
-            "memory_frequency": gpu.memory_clk,
-            "graphics_frequency": gpu.graphics_clk,
+            "memory_frequency": original_memory_freq,
+            "graphics_frequency": original_graphics_freq,
             "benchmark_metrics": {
                 "runtime": -1,  # Placeholder for runtime
                 "nvml_metrics": nvml_metrics,
@@ -131,14 +135,14 @@ def get_new_frequencies(
         graphics_scaling_factor=graphics_scaling_factor,
     )
 
-    # Calculate new frequencies
+    # Calculate new frequencies using non standardized values
     new_memory_freq = closest_value(
         numbers=gpu.get_supported_memory_clocks(),
-        target=float(mem_freq.cpu().item()) * memory_scaling_factor,
+        target=original_memory_freq * memory_scaling_factor,
     )
     new_core_freq = closest_value(
         numbers=gpu.get_supported_graphics_clocks(memory_clock=new_memory_freq),
-        target=float(core_freq.cpu().item()) * graphics_scaling_factor,
+        target=original_graphics_freq * graphics_scaling_factor,
     )
 
     return new_memory_freq, new_core_freq
