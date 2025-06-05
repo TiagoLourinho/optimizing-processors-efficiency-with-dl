@@ -40,6 +40,9 @@ class GPU:
         self.__is_graphics_clk_locked = False
         self.__is_memory_clk_locked = False
 
+        # Whether or not the GPU is in realtime mode (skips sleeps when changing clocks)
+        self.__realtime_mode = False
+
     def __enter__(self) -> "GPU":
         """Initializes nvml and gets the device handle"""
 
@@ -76,6 +79,18 @@ class GPU:
         """Returns the GPU name"""
 
         return nvmlDeviceGetName(handle=self.__handle)
+
+    @property
+    def realtime_mode(self) -> bool:
+        """Whether or not the GPU is in realtime mode"""
+
+        return self.__realtime_mode
+
+    @realtime_mode.setter
+    def realtime_mode(self, value: bool):
+        """Sets the GPU to realtime mode or not"""
+
+        self.__realtime_mode = value
 
     ######################################## Clocks management and monitoring ########################################
 
@@ -125,7 +140,9 @@ class GPU:
             handle=self.__handle, minGpuClockMHz=value, maxGpuClockMHz=value
         )
 
-        time.sleep(1)
+        # If the GPU is in realtime mode, skip the sleep
+        if not self.__realtime_mode:
+            time.sleep(1)
 
         # NVML returns for example 7001 MHz in the supported clocks,
         # but then the value returned by the query is just 7000 MHz
@@ -149,7 +166,9 @@ class GPU:
             handle=self.__handle, minMemClockMHz=value, maxMemClockMHz=value
         )
 
-        time.sleep(1)
+        # If the GPU is in realtime mode, skip the sleep
+        if not self.__realtime_mode:
+            time.sleep(1)
 
         # NVML returns for example 7001 MHz in the supported clocks,
         # but then the value returned by the query is just 7000 MHz
@@ -162,7 +181,10 @@ class GPU:
         """Resets the graphics clock to the default value"""
 
         nvmlDeviceResetGpuLockedClocks(handle=self.__handle)
-        time.sleep(1)
+
+        # If the GPU is in realtime mode, skip the sleep
+        if not self.__realtime_mode:
+            time.sleep(1)
 
         self.__is_graphics_clk_locked = False
 
@@ -170,7 +192,10 @@ class GPU:
         """Resets the memory clock to the default value"""
 
         nvmlDeviceResetMemoryLockedClocks(handle=self.__handle)
-        time.sleep(1)
+
+        # If the GPU is in realtime mode, skip the sleep
+        if not self.__realtime_mode:
+            time.sleep(1)
 
         self.__is_memory_clk_locked = False
 
