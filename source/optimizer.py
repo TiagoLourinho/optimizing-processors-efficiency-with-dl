@@ -178,6 +178,7 @@ def main(
         )
 
     with GPU() as gpu:
+
         with BenchmarkMonitor(
             gpu=gpu,
             sampling_frequency=None,
@@ -188,6 +189,7 @@ def main(
             gpu.reset_graphics_clk()
             gpu.reset_memory_clk()
             time.sleep(1)
+            gpu.realtime_mode = True
 
             print("Starting the application...")
 
