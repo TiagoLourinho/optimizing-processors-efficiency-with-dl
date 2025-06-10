@@ -9,8 +9,16 @@ config = {
         ################################
         ########## GPU config ##########
         ################################
-        "n_closest_core_clocks": 25,  # int - The amount of core clocks to consider when collecting samples, the N closest to the default will be considered
-        "n_closest_mem_clocks": 5,  # int - The amount of memory clocks to consider when collecting samples, the N closest to the default will be considered
+        "memory_levels": {
+            "max": 9501,
+            "min": 5001,
+            "count": 3,
+        },  # dict - Defines the memory levels to use for the GPU
+        "graphics_levels": {
+            "max": 2100,
+            "min": 1005,
+            "count": 25,
+        },  # dict - Defines the graphics levels to use for the GPU
         #################################
         ######## Sampling config ########
         #################################

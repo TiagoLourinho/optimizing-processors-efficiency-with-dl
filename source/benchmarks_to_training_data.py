@@ -14,7 +14,7 @@ from my_lib.PTX_parser import PTXParser
 from my_lib.utils import (
     are_there_other_users,
     collect_system_info,
-    reduce_clocks_list,
+    approximate_linear_space,
     validate_config,
 )
 
@@ -123,23 +123,25 @@ def main(data: dict, config: dict):
                 skipped_benchmarks = 0
                 skipped_clock_configs = 0
 
-                sample_mem_clocks = reduce_clocks_list(
-                    original_clocks=gpu.get_supported_memory_clocks(),
-                    N=config["n_closest_mem_clocks"],
-                    default=data["default_freqs"]["memory"],
+                sample_mem_clocks = approximate_linear_space(
+                    values=gpu.get_supported_memory_clocks(),
+                    min_value=config["memory_levels"]["min"],
+                    max_value=config["memory_levels"]["max"],
+                    count=config["memory_levels"]["count"],
                 )
                 print("\nMemory clocks to sample on: ", sample_mem_clocks)
                 for memory_clock in sample_mem_clocks:
 
-                    sample_core_clocks = reduce_clocks_list(
-                        original_clocks=gpu.get_supported_graphics_clocks(
+                    sample_core_clocks = approximate_linear_space(
+                        values=gpu.get_supported_graphics_clocks(
                             memory_clock=memory_clock
                         ),
-                        N=config["n_closest_core_clocks"],
-                        default=data["default_freqs"]["graphics"],
+                        min_value=config["graphics_levels"]["min"],
+                        max_value=config["graphics_levels"]["max"],
+                        count=config["graphics_levels"]["count"],
                     )
 
-                    n_total_samples = (
+                    n_total_approximated_samples = (
                         len(sample_core_clocks)
                         * len(sample_mem_clocks)
                         * total_compiled_benchmarks
@@ -205,7 +207,7 @@ def main(data: dict, config: dict):
                                 )
                                 minutes, _ = divmod(remainder, 60)
                                 print(
-                                    f"\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])} ({round(100*(len(data['training_data'])/n_total_samples))}%)"
+                                    f"\nTime: {now.strftime('%Y-%m-%d %H:%M:%S')} ({int(hours)}h:{int(minutes)}min since starting)\nMemory clk: {memory_clock}Hz | Graphics clk: {graphics_clock}Hz ({skipped_clock_configs} clock configs skipped)\nBenchmark: {benchmark_name} ({skipped_benchmarks}/{total_compiled_benchmarks} skipped)\nCollected samples: {len(data['training_data'])} (~{round(100*(len(data['training_data'])/n_total_approximated_samples))}%)"
                                 )
 
                                 break  # If these args worked, no need to test the following

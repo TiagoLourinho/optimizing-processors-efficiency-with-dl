@@ -2,23 +2,37 @@ import socket
 from datetime import datetime
 
 import cpuinfo
+import numpy as np
 import psutil
 
 
-def reduce_clocks_list(original_clocks: list[int], N: int, default: int):
-    """
-    Given a list of clocks, returns a reduced list with the N closest clocks to the default value.
+def approximate_linear_space(
+    values: list[int], min_val: int, max_val: int, count: int
+) -> list[int]:
+    """Finds a set of `count` values that are approximately evenly spaced"""
 
-    If N > len(original_clocks), then all the clocks are returned.
-    """
+    # Ensure min_val and max_val are within the range of values
+    min_val = max(min_val, min(values))
+    max_val = min(max_val, max(values))
 
-    # Sort the clocks by their absolute distance to the default
-    sorted_clocks = sorted(original_clocks, key=lambda x: abs(x - default))
+    # Filter values within the specified range and remove duplicates
+    filtered = sorted(set([v for v in values if min_val <= v <= max_val]))
 
-    # Return the first N clocks (or all of them if N is too large)
-    reduced = sorted_clocks[:N]
+    # If count is greater than the available numbers, return only the available ones
+    if count >= len(filtered):
+        return filtered
 
-    return sorted(reduced)
+    # Use numpy to generate linearly spaced positions
+    ideal_positions = np.linspace(min_val, max_val, count)
+
+    result = []
+    for target in ideal_positions:
+        # Find the closest value in filtered values
+        closest_value = min(filtered, key=lambda x: abs(x - target))
+        result.append(closest_value)
+        filtered.remove(closest_value)  # Remove to avoid duplicates
+
+    return sorted(result)
 
 
 def collect_system_info(gpu_name: str) -> dict:
