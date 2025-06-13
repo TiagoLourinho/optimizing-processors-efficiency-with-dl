@@ -37,7 +37,6 @@ data: dict = {
     "config": {},  # The config used to profile
     "system_info": {},  # System information
     "models_info": {},  # Extra info needed in the pytorch side to create the models
-    "default_freqs": {},  # Keep track of the default frequencies found
     "ptxs": {},  # Contains the PTX of every considered benchmark
     "training_data": [],  # The traning data (each training sample contains the encoded ptx, the frequencies used and the nvml/cupti metrics)
 }
@@ -83,16 +82,10 @@ def main(data: dict, config: dict):
     # Init the GPU and compile the benchmark
     with GPU() as gpu:
 
-        # Find default values
+        # Init
         gpu.reset_graphics_clk()
         gpu.reset_memory_clk()
         time.sleep(1)
-        data["default_freqs"]["graphics"] = gpu.graphics_clk
-        data["default_freqs"]["memory"] = gpu.memory_clk
-
-        print(
-            f'Defaults freqs: Core: {data["default_freqs"]["graphics"]} Mem: {data["default_freqs"]["memory"]}'
-        )
 
         compiler = Compiler(
             nvcc_path=config["nvcc_path"],
