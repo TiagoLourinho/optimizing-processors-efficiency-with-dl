@@ -189,9 +189,11 @@ def main(
             n_runs=None,
         ) as benchmark_monitor:
 
-            # Reset to default
-            gpu.reset_graphics_clk()
-            gpu.reset_memory_clk()
+            # Set to maximum performance at the start
+            gpu.memory_clk = max(gpu.get_supported_memory_clocks())
+            gpu.graphics_clk = max(
+                gpu.get_supported_graphics_clocks(memory_clock=gpu.memory_clk)
+            )
             time.sleep(1)
             gpu.realtime_mode = True
 
