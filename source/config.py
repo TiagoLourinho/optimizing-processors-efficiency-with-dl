@@ -9,14 +9,15 @@ config = {
         ################################
         ########## GPU config ##########
         ################################
+        # Currently has the clock levels for Cara
         "memory_levels": {
-            "max": 9501,
-            "min": 5001,
-            "count": 3,
+            "max": 5505,
+            "min": 5005,
+            "count": 2,
         },  # dict - Defines the memory levels to use for the GPU
         "graphics_levels": {
-            "max": 2100,
-            "min": 1005,
+            "max": 1936,
+            "min": 1012,
             "count": 25,
         },  # dict - Defines the graphics levels to use for the GPU
         #################################
