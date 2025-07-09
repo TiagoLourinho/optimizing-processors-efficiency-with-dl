@@ -113,7 +113,7 @@ A JSON file called `training_data.json` like the sample version below.
 
 #### Usage
 
-1. Compile the CUPTI script using `source/cupti/Makefile`.
+1. Compile the CUPTI script using `source/cupti/Makefile`. (`CUDA_INSTALL_PATH` env variable should be defined)
 
 2. Adjust the tool behavior changing `source/config.py` (`benchmarks_to_training_data` key).
 
