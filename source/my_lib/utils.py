@@ -81,8 +81,8 @@ def validate_config(config: dict):
     keys_config = {
         "benchmarks_folder": get_key_config_dict(required=True, type=str),
         "nvcc_path": get_key_config_dict(required=True, type=str),
-        "n_closest_core_clocks": get_key_config_dict(required=True, type=int),
-        "n_closest_mem_clocks": get_key_config_dict(required=True, type=int),
+        "graphics_levels": get_key_config_dict(required=True, type=dict),
+        "memory_levels": get_key_config_dict(required=True, type=dict),
         "sampling_freq": get_key_config_dict(required=True, type=int),
         "n_runs": get_key_config_dict(required=True, type=int),
     }
