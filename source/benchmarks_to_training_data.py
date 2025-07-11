@@ -118,8 +118,8 @@ def main(data: dict, config: dict):
 
                 sample_mem_clocks = approximate_linear_space(
                     values=gpu.get_supported_memory_clocks(),
-                    min_value=config["memory_levels"]["min"],
-                    max_value=config["memory_levels"]["max"],
+                    min_val=config["memory_levels"]["min"],
+                    max_val=config["memory_levels"]["max"],
                     count=config["memory_levels"]["count"],
                 )
                 print("\nMemory clocks to sample on: ", sample_mem_clocks)
@@ -129,8 +129,8 @@ def main(data: dict, config: dict):
                         values=gpu.get_supported_graphics_clocks(
                             memory_clock=memory_clock
                         ),
-                        min_value=config["graphics_levels"]["min"],
-                        max_value=config["graphics_levels"]["max"],
+                        min_val=config["graphics_levels"]["min"],
+                        max_val=config["graphics_levels"]["max"],
                         count=config["graphics_levels"]["count"],
                     )
 
