@@ -426,8 +426,10 @@ if __name__ == "__main__":
     config["models_trainer"].update(
         {
             "frequency_levels": {
-                "core": config["benchmarks_to_training_data"]["n_closest_core_clocks"],
-                "mem": config["benchmarks_to_training_data"]["n_closest_mem_clocks"],
+                "core": config["benchmarks_to_training_data"]["graphics_levels"][
+                    "count"
+                ],
+                "mem": config["benchmarks_to_training_data"]["memory_levels"]["count"],
             }
         }
     )
