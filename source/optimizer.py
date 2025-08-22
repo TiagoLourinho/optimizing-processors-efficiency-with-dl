@@ -190,10 +190,20 @@ def main(
         ) as benchmark_monitor:
 
             # Set to maximum performance at the start
-            gpu.memory_clk = max(gpu.get_supported_memory_clocks())
-            gpu.graphics_clk = max(
-                gpu.get_supported_graphics_clocks(memory_clock=gpu.memory_clk)
-            )
+            try:
+                gpu.memory_clk = max(gpu.get_supported_memory_clocks())
+            except GPUClockChangingError:
+                print(
+                    f"Couldn't set memory clock to maximum, using {gpu.memory_clk} instead."
+                )
+            try:
+                gpu.graphics_clk = max(
+                    gpu.get_supported_graphics_clocks(memory_clock=gpu.memory_clk)
+                )
+            except GPUClockChangingError:
+                print(
+                    f"Couldn't set graphics clock to maximum, using {gpu.graphics_clk} instead."
+                )
             time.sleep(1)
             gpu.realtime_mode = True
 
