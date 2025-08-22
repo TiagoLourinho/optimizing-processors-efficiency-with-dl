@@ -216,6 +216,7 @@ def main(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            changing_errors = 0
             while True:
                 retcode = application_process.poll()
 
@@ -231,6 +232,9 @@ def main(
                         f"Runtime: {final_runtime:.2f} seconds, Average power: {final_power:.2f} W"
                     )
                     print(f"ED²P: {ed2p:.2f} J/s²\n")
+                    print(
+                        f"Changing errors: {changing_errors} (still changed to close clocks)"
+                    )
 
                     break
 
@@ -263,9 +267,10 @@ def main(
                     except (GPUClockChangingError, AssertionError):
 
                         # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
-                        print(
+                        """print(
                             f"\nCouldn't change to memory_clk={new_memory_freq} and graphics_clock={new_core_freq}..."
-                        )
+                        )"""
+                        changing_errors += 1
 
 
 if __name__ == "__main__":
