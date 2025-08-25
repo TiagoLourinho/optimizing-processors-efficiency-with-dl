@@ -172,7 +172,7 @@ No file is produced. It runs the application and prints some energy related metr
 
 #### Usage
 
-1. Run `sudo $(which python3) source/optimizer.py --ptx_path <PTX_OF_THE_APPLICATION> --exec_path <CUDA_EXECUTABLE>`.
+1. Run `sudo $(which python3) source/optimizer.py --ptx_path <PTX_OF_THE_APPLICATION> --exec_path <CUDA_EXECUTABLE> -- <EXECUTABLE_ARGUMENTS>`.
 
 #### 4 - Plots Creator
 

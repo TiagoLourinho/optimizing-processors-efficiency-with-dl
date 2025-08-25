@@ -151,6 +151,7 @@ def get_new_frequencies(
 def main(
     ptx_file: str,
     executable_file: str,
+    executable_args: list[str],
     device: torch.device,
     models_parameters: dict,
     control_clocks: bool,
@@ -212,7 +213,7 @@ def main(
             power_samples = []
             start = time.perf_counter()
             application_process = subprocess.Popen(
-                [f"./{executable_file}"],
+                [f"./{executable_file}"] + executable_args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
@@ -290,6 +291,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Run the benchmark without using the optimizer, clocks are managed by the driver freely (default: False)",
     )
+    # Everything after `--` is passed to the executable
+    parser.add_argument(
+        "exec_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments to pass to the executable (use `--` to separate)",
+    )
     args = parser.parse_args()
 
     config = config["models_trainer"]
@@ -310,6 +317,7 @@ if __name__ == "__main__":
     main(
         ptx_file=args.ptx_path,
         executable_file=args.exec_path,
+        executable_args=args.exec_args[1:],  # Remove the separator `--`
         device=device,
         models_parameters=models_parameters,
         control_clocks=not args.get_baseline,
