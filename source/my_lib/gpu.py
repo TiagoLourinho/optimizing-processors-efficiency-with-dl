@@ -144,10 +144,10 @@ class GPU:
         if not self.__realtime_mode:
             time.sleep(1)
 
-        # NVML returns for example 7001 MHz in the supported clocks,
-        # but then the value returned by the query is just 7000 MHz
-        if abs(self.graphics_clk - value) > 1:
-            raise GPUClockChangingError()
+            # NVML returns for example 7001 MHz in the supported clocks,
+            # but then the value returned by the query is just 7000 MHz
+            if abs(self.graphics_clk - value) > 1:
+                raise GPUClockChangingError()
 
         self.__is_graphics_clk_locked = True
 
@@ -170,10 +170,10 @@ class GPU:
         if not self.__realtime_mode:
             time.sleep(1)
 
-        # NVML returns for example 7001 MHz in the supported clocks,
-        # but then the value returned by the query is just 7000 MHz
-        if abs(self.memory_clk - value) > 1:
-            raise GPUClockChangingError()
+            # NVML returns for example 7001 MHz in the supported clocks,
+            # but then the value returned by the query is just 7000 MHz
+            if abs(self.memory_clk - value) > 1:
+                raise GPUClockChangingError()
 
         self.__is_memory_clk_locked = True
 

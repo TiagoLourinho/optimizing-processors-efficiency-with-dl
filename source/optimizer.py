@@ -191,22 +191,23 @@ def main(
         ) as benchmark_monitor:
 
             # Set to maximum performance at the start
-            try:
-                gpu.memory_clk = max(gpu.get_supported_memory_clocks())
-            except GPUClockChangingError:
-                print(
-                    f"Couldn't set memory clock to maximum, using {gpu.memory_clk} instead."
-                )
-            try:
-                gpu.graphics_clk = max(
-                    gpu.get_supported_graphics_clocks(memory_clock=gpu.memory_clk)
-                )
-            except GPUClockChangingError:
-                print(
-                    f"Couldn't set graphics clock to maximum, using {gpu.graphics_clk} instead."
-                )
-            time.sleep(1)
-            gpu.realtime_mode = True
+            if control_clocks:
+                try:
+                    gpu.memory_clk = max(gpu.get_supported_memory_clocks())
+                except GPUClockChangingError:
+                    print(
+                        f"Couldn't set memory clock to maximum, using {gpu.memory_clk} instead."
+                    )
+                try:
+                    gpu.graphics_clk = max(
+                        gpu.get_supported_graphics_clocks(memory_clock=gpu.memory_clk)
+                    )
+                except GPUClockChangingError:
+                    print(
+                        f"Couldn't set graphics clock to maximum, using {gpu.graphics_clk} instead."
+                    )
+                time.sleep(1)
+                gpu.realtime_mode = True
 
             print("Starting the application...")
 
@@ -217,7 +218,6 @@ def main(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            changing_errors = 0
             while True:
                 retcode = application_process.poll()
 
@@ -233,9 +233,6 @@ def main(
                         f"Runtime: {final_runtime:.2f} seconds, Average power: {final_power:.2f} W"
                     )
                     print(f"ED²P: {ed2p:.2f} J/s²\n")
-                    print(
-                        f"Changing errors: {changing_errors} (still changed to close clocks)"
-                    )
 
                     break
 
@@ -258,20 +255,8 @@ def main(
                         device=device,
                     )
 
-                    try:
-                        gpu.memory_clk = new_memory_freq
-                        gpu.graphics_clk = new_core_freq
-
-                        # Sometimes the driver changes the graphics clock after changing the graphics clock
-                        assert gpu.memory_clk == new_memory_freq
-                        assert gpu.graphics_clk == new_core_freq
-                    except (GPUClockChangingError, AssertionError):
-
-                        # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them
-                        """print(
-                            f"\nCouldn't change to memory_clk={new_memory_freq} and graphics_clock={new_core_freq}..."
-                        )"""
-                        changing_errors += 1
+                    gpu.memory_clk = new_memory_freq
+                    gpu.graphics_clk = new_core_freq
 
 
 if __name__ == "__main__":
