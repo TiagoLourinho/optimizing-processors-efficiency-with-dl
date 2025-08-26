@@ -3,6 +3,7 @@ import json
 import random
 import subprocess
 import time
+from collections import deque
 
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ from my_lib.utils import closest_value, get_ed2p
 
 
 FREQUENCY_UPDATE_INTERVAL = 0.1  # seconds
+CONSECUTIVE_CONTROL_SIGNALS = 2  # Number of consecutive equal control signals to send before actual changing frequencies
 
 
 def get_ptx_embedding(
@@ -218,6 +220,8 @@ def main(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            last_memory_freqs = deque(maxlen=CONSECUTIVE_CONTROL_SIGNALS)
+            last_graphics_freqs = deque(maxlen=CONSECUTIVE_CONTROL_SIGNALS)
             while True:
                 retcode = application_process.poll()
 
@@ -254,9 +258,18 @@ def main(
                         ptx_embedding=ptx_embedding,
                         device=device,
                     )
+                    last_memory_freqs.append(new_memory_freq)
+                    last_graphics_freqs.append(new_core_freq)
 
-                    gpu.memory_clk = new_memory_freq
-                    gpu.graphics_clk = new_core_freq
+                    # Only change frequencies if the last N control signals are the same
+                    if len(last_memory_freqs) == CONSECUTIVE_CONTROL_SIGNALS and all(
+                        x == last_memory_freqs[0] for x in last_memory_freqs
+                    ):
+                        gpu.memory_clk = new_memory_freq
+                    if len(last_graphics_freqs) == CONSECUTIVE_CONTROL_SIGNALS and all(
+                        x == last_graphics_freqs[0] for x in last_graphics_freqs
+                    ):
+                        gpu.graphics_clk = new_core_freq
 
 
 if __name__ == "__main__":
