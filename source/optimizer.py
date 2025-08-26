@@ -157,6 +157,7 @@ def main(
     device: torch.device,
     models_parameters: dict,
     control_clocks: bool,
+    plot_control_signals: bool,
 ):
     # Load models
     if control_clocks:
@@ -183,6 +184,10 @@ def main(
             models_parameters=models_parameters,
             device=device,
         )
+
+        if plot_control_signals:
+            memory_control_signals = []
+            graphics_control_signals = []
 
     with GPU() as gpu:
 
@@ -261,6 +266,10 @@ def main(
                     last_memory_freqs.append(new_memory_freq)
                     last_graphics_freqs.append(new_core_freq)
 
+                    if plot_control_signals:
+                        memory_control_signals.append(new_memory_freq)
+                        graphics_control_signals.append(new_core_freq)
+
                     # Only change frequencies if the last N control signals are the same
                     if len(last_memory_freqs) == CONSECUTIVE_CONTROL_SIGNALS and all(
                         x == last_memory_freqs[0] for x in last_memory_freqs
@@ -270,6 +279,30 @@ def main(
                         x == last_graphics_freqs[0] for x in last_graphics_freqs
                     ):
                         gpu.graphics_clk = new_core_freq
+
+            if plot_control_signals:
+                import matplotlib.pyplot as plt
+
+                plt.figure(figsize=(12, 6))
+                plt.plot(
+                    np.arange(len(memory_control_signals)) * FREQUENCY_UPDATE_INTERVAL,
+                    memory_control_signals,
+                    label="Memory Clock (MHz)",
+                    marker="o",
+                )
+                plt.plot(
+                    np.arange(len(graphics_control_signals))
+                    * FREQUENCY_UPDATE_INTERVAL,
+                    graphics_control_signals,
+                    label="Graphics Clock (MHz)",
+                    marker="o",
+                )
+                plt.xlabel("Time (s)")
+                plt.ylabel("Clock Frequency (MHz)")
+                plt.title("Control Signals Over Time")
+                plt.legend()
+                plt.grid()
+                plt.savefig("control_signals.png")
 
 
 if __name__ == "__main__":
@@ -288,6 +321,12 @@ if __name__ == "__main__":
         default=False,
         action="store_true",
         help="Run the benchmark without using the optimizer, clocks are managed by the driver freely (default: False)",
+    )
+    parser.add_argument(
+        "--plot_control_signals",
+        default=False,
+        action="store_true",
+        help="Plot the control signals over time (default: False)",
     )
     # Everything after `--` is passed to the executable
     parser.add_argument(
@@ -319,4 +358,5 @@ if __name__ == "__main__":
         device=device,
         models_parameters=models_parameters,
         control_clocks=not args.get_baseline,
+        plot_control_signals=args.plot_control_signals,
     )
