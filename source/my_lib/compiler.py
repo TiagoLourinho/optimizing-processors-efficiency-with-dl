@@ -9,7 +9,6 @@ class Compiler:
     """Handles the compilation and PTX extraction of all the benchmarks"""
 
     NVCC_FLAGS = [
-        f"-gencode=arch=compute_52,code=compute_52",  # Default architecture used by nvcc but explicit
         "-O0",  # No optimization
         "-Xcompiler",
         "-O0",  # No optimization for host compiler
