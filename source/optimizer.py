@@ -15,7 +15,7 @@ from models.standardizer import Standardizer
 from my_lib.PTX_parser import PTXParser
 from my_lib.gpu import GPU, GPUClockChangingError
 from my_lib.benchmark_monitor import BenchmarkMonitor
-from my_lib.utils import closest_value, get_ed2p
+from my_lib.utils import closest_value, get_ed2p, get_edp
 
 
 FREQUENCY_UPDATE_INTERVAL = 0.1  # seconds
@@ -236,12 +236,14 @@ def main(
                     final_runtime = end - start
                     final_power = float(np.mean(power_samples))
                     ed2p = get_ed2p(power=final_power, runtime=final_runtime)
+                    edp = get_edp(power=final_power, runtime=final_runtime)
 
                     print(f"\nApplication finished with return code: {retcode}")
                     print(
                         f"Runtime: {final_runtime:.2f} seconds, Average power: {final_power:.2f} W"
                     )
-                    print(f"ED²P: {ed2p:.2f} J/s²\n")
+                    print(f"EDP: {edp:.2f} J⋅s\n")
+                    print(f"ED²P: {ed2p:.2f} J⋅s²\n")
 
                     break
 

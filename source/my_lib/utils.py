@@ -113,3 +113,8 @@ def closest_value(numbers: list[int], target: int) -> int:
 def get_ed2p(power: float, runtime: float):
     # ED²P = E * D² = P * D * D² = P * D³
     return power * (runtime**3)
+
+
+def get_edp(power: float, runtime: float):
+    # EDP = E * D = P * D * D = P * D²
+    return power * (runtime**2)
