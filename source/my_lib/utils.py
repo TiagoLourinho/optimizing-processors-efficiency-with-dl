@@ -85,6 +85,7 @@ def validate_config(config: dict):
         "memory_levels": get_key_config_dict(required=True, type=dict),
         "sampling_freq": get_key_config_dict(required=True, type=int),
         "n_runs": get_key_config_dict(required=True, type=int),
+        "timeout_seconds": get_key_config_dict(required=True, type=int),
     }
 
     if len(keys_config) != len(config):
