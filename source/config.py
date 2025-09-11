@@ -25,6 +25,7 @@ config = {
         #################################
         "sampling_freq": 100,  # int [Hz] - The sampling frequency to use (maximum is 100 Hz).
         "n_runs": 3,  # int [count] - The amount of times to run the program to get the average GPU metrics.
+        "timeout_seconds": 10 * 60,  # int [seconds] - The timeout for each benchmark
     },
     "models_trainer": {
         ######################################

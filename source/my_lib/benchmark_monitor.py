@@ -96,6 +96,7 @@ class BenchmarkMonitor:
         gpu: GPU,
         sampling_frequency: int,
         n_runs: int,
+        timeout_seconds: int,
     ) -> None:
 
         self.__gpu = gpu
@@ -111,6 +112,9 @@ class BenchmarkMonitor:
                 sampling_frequency, 100
             )  # Limit sampling frequency to 100 Hz because of NVML
             """ The sampling frequency [Hz] """
+
+        self.__timeout_seconds = timeout_seconds
+        """ The timeout for each benchmark run [seconds] """
 
     def __enter__(self):
         """Starts CUPTI"""
@@ -233,6 +237,7 @@ class BenchmarkMonitor:
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    timeout=self.__timeout_seconds,
                 )
                 sample_event.clear()
 

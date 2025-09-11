@@ -2,7 +2,7 @@ import json
 import os
 import time
 from datetime import datetime
-from subprocess import CalledProcessError
+from subprocess import CalledProcessError, TimeoutExpired
 
 from config import config
 from dotenv import load_dotenv
@@ -96,6 +96,7 @@ def main(data: dict, config: dict):
             gpu=gpu,
             sampling_frequency=config["sampling_freq"],
             n_runs=config["n_runs"],
+            timeout_seconds=config["timeout_seconds"],
         ) as benchmark_monitor:
 
             try:
@@ -175,6 +176,10 @@ def main(data: dict, config: dict):
                                         benchmark_path=executable_path,
                                         benchmark_args=args,
                                     )
+
+                                except TimeoutExpired as e:
+                                    print(f"\n{str(e)}")
+                                    break  # No need to try other args if it timed out
 
                                 except CalledProcessError as e:
                                     print(f"\n{str(e)}")
