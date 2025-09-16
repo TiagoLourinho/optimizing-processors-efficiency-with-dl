@@ -1,6 +1,8 @@
 import json
 import os
+import pickle
 import time
+from copy import copy
 from datetime import datetime
 from subprocess import CalledProcessError, TimeoutExpired
 
@@ -12,9 +14,9 @@ from my_lib.encoded_instruction import EncodedInstruction
 from my_lib.gpu import GPU, GPUClockChangingError
 from my_lib.PTX_parser import PTXParser
 from my_lib.utils import (
+    approximate_linear_space,
     are_there_other_users,
     collect_system_info,
-    approximate_linear_space,
     validate_config,
 )
 
@@ -61,8 +63,13 @@ BENCHMARK_ARGS_TO_TEST = [
     ],  # Some benchmarks give the error message as the previous one but still expect one extra argument for the stride
 ]
 
+checkpoint_state_file = "checkpoint_state.pkl"
+checkpoint_data_file = "checkpoint_data.pkl"
 
-def main(data: dict, config: dict):
+
+def main(
+    data: dict, config: dict, running_from_checkpoint: bool, checkpoint_state: dict
+):
 
     # Check if there are other users logged in
     if are_there_other_users():
@@ -100,40 +107,69 @@ def main(data: dict, config: dict):
         ) as benchmark_monitor:
 
             try:
+                if not running_from_checkpoint:
+                    data["system_info"] = collect_system_info(gpu_name=gpu.name)
 
-                data["system_info"] = collect_system_info(gpu_name=gpu.name)
+                    compiler.compile_and_obtain_ptx()
 
-                compiler.compile_and_obtain_ptx()
+                    # Convert the PTX to a sequence of vectors
+                    for ptx_file in os.listdir(PTX_PATH):
+                        benchmark_name = ptx_file.replace(".ptx", "")
 
-                # Convert the PTX to a sequence of vectors
-                for ptx_file in os.listdir(PTX_PATH):
-                    benchmark_name = ptx_file.replace(".ptx", "")
-
-                    data["ptxs"][benchmark_name] = ptx_parser.parse(
-                        os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
-                    )
+                        data["ptxs"][benchmark_name] = ptx_parser.parse(
+                            os.path.join(PTX_PATH, ptx_file), convert_to_dicts=True
+                        )
 
                 total_compiled_benchmarks = len(os.listdir(EXECUTABLES_PATH))
                 skipped_benchmarks = 0
                 skipped_clock_configs = 0
 
-                sample_mem_clocks = approximate_linear_space(
-                    values=gpu.get_supported_memory_clocks(),
-                    min_val=config["memory_levels"]["min"],
-                    max_val=config["memory_levels"]["max"],
-                    count=config["memory_levels"]["count"],
-                )
+                if running_from_checkpoint:
+                    sample_mem_clocks = copy(checkpoint_state["memory_levels_left"])
+                else:
+                    sample_mem_clocks = approximate_linear_space(
+                        values=gpu.get_supported_memory_clocks(),
+                        min_val=config["memory_levels"]["min"],
+                        max_val=config["memory_levels"]["max"],
+                        count=config["memory_levels"]["count"],
+                    )
+
+                    # Initialize checkpoint state
+                    checkpoint_state["memory_levels_left"] = copy(sample_mem_clocks)
+                    checkpoint_state["graphics_levels_left_per_mem"] = {
+                        mem: None for mem in sample_mem_clocks
+                    }
+
                 print("\nMemory clocks to sample on: ", sample_mem_clocks)
                 for memory_clock in sample_mem_clocks:
 
-                    sample_core_clocks = approximate_linear_space(
-                        values=gpu.get_supported_graphics_clocks(
-                            memory_clock=memory_clock
-                        ),
-                        min_val=config["graphics_levels"]["min"],
-                        max_val=config["graphics_levels"]["max"],
-                        count=config["graphics_levels"]["count"],
-                    )
+                    # Only recover the core levels left to test if running from a checkpoint and there are some levels left to test
+                    # (if None, it means all levels are left to test and have to be defined)
+                    if (
+                        running_from_checkpoint
+                        and checkpoint_state["graphics_levels_left_per_mem"][
+                            memory_clock
+                        ]
+                        is not None
+                    ):
+                        sample_core_clocks = copy(
+                            checkpoint_state["graphics_levels_left_per_mem"][
+                                memory_clock
+                            ]
+                        )
+                    else:
+                        sample_core_clocks = approximate_linear_space(
+                            values=gpu.get_supported_graphics_clocks(
+                                memory_clock=memory_clock
+                            ),
+                            min_val=config["graphics_levels"]["min"],
+                            max_val=config["graphics_levels"]["max"],
+                            count=config["graphics_levels"]["count"],
+                        )
+                        # Initialize checkpoint state
+                        checkpoint_state["graphics_levels_left_per_mem"][
+                            memory_clock
+                        ] = copy(sample_core_clocks)
 
                     n_total_approximated_samples = (
                         len(sample_core_clocks)
@@ -229,6 +265,20 @@ def main(data: dict, config: dict):
 
                                 skipped_benchmarks += 1
 
+                        # Update checkpoint state after each graphics clock tested
+                        checkpoint_state["graphics_levels_left_per_mem"][
+                            memory_clock
+                        ].remove(graphics_clock)
+
+                        # Dump checkpoint state and data to files
+                        with open(checkpoint_state_file, "wb") as f:
+                            pickle.dump(checkpoint_state, f)
+                        with open(checkpoint_data_file, "wb") as f:
+                            pickle.dump(data, f)
+
+                    # Update checkpoint state after each memory clock tested
+                    checkpoint_state["memory_levels_left"].remove(memory_clock)
+
                 data["system_info"]["duration"] = f"{int(hours)}h:{int(minutes)}min"
                 data["models_info"] = EncodedInstruction.get_enconding_info()
                 data["models_info"]["n_cupti_metrics"] = len(
@@ -243,10 +293,42 @@ def main(data: dict, config: dict):
                     json.dump(data, json_file, indent=4)
                     print(f"\nExported training data to {training_data_file}.")
 
+                # Remove checkpoint files as the execution finished successfully
+                if os.path.exists(checkpoint_state_file):
+                    os.remove(checkpoint_state_file)
+                if os.path.exists(checkpoint_data_file):
+                    os.remove(checkpoint_data_file)
+
             except KeyboardInterrupt:
                 print("\nInterrupting...")
                 return
 
 
 if __name__ == "__main__":
-    main(data=data, config=config["benchmarks_to_training_data"])
+
+    # Used to manage regular checkpoints so that if execution is interrupted,
+    # it can be resumed from the last checkpoint
+    checkpoint_state = {
+        "memory_levels_left": None,  # list of memory levels left to test
+        "graphics_levels_left_per_mem": None,  # dict of memory level -> list of graphics levels left to test OR None if all levels are left
+    }
+
+    # Try to load checkpoint if it exists
+    running_from_checkpoint = False
+    if os.path.exists(checkpoint_state_file) and os.path.exists(checkpoint_data_file):
+        print("Resuming from last checkpoint...")
+
+        running_from_checkpoint = True
+
+        with open(checkpoint_state_file, "rb") as f:
+            checkpoint_state = pickle.load(f)
+
+        with open(checkpoint_data_file.pkl, "rb") as f:
+            checkpoint_data = pickle.load(f)
+
+    main(
+        data=checkpoint_data if running_from_checkpoint else data,
+        config=config["benchmarks_to_training_data"],
+        running_from_checkpoint=running_from_checkpoint,
+        checkpoint_state=checkpoint_state,
+    )
