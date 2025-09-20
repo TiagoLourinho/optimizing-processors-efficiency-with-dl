@@ -323,7 +323,7 @@ if __name__ == "__main__":
         with open(checkpoint_state_file, "rb") as f:
             checkpoint_state = pickle.load(f)
 
-        with open(checkpoint_data_file.pkl, "rb") as f:
+        with open(checkpoint_data_file, "rb") as f:
             checkpoint_data = pickle.load(f)
 
     main(
