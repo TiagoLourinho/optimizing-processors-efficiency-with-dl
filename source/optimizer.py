@@ -216,7 +216,9 @@ def main(
                 time.sleep(1)
                 gpu.realtime_mode = True
 
-            print("Starting the application...")
+            print(
+                f'##### Running {executable_file.replace(".out")} | {"BASELINE" if not control_clocks else "CONTROLLED"} #####'
+            )
 
             power_samples = []
             start = time.perf_counter()
