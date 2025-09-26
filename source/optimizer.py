@@ -240,10 +240,9 @@ def main(
 
                     print(f"\nApplication finished with return code: {retcode}")
                     print(
-                        f"Runtime: {final_runtime:.2f} seconds, Average power: {final_power:.2f} W"
+                        f"Runtime: {final_runtime:.2f} seconds\tAverage power: {final_power:.2f} W"
                     )
-                    print(f"EDP: {edp:.2f} J⋅s\n")
-                    print(f"ED²P: {ed2p:.2f} J⋅s²\n")
+                    print(f"EDP: {edp:.2f} J⋅s\tED²P: {ed2p:.2f} J⋅s²")
 
                     break
 
