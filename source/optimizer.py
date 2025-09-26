@@ -217,7 +217,7 @@ def main(
                 gpu.realtime_mode = True
 
             print(
-                f'##### Running {executable_file.replace(".out", "")} | {"BASELINE" if not control_clocks else "CONTROLLED"} #####'
+                f'##### Running {executable_file[executable_file.rfind("/")+1:].replace(".out", "")} | {"BASELINE" if not control_clocks else "CONTROLLED"} #####'
             )
 
             power_samples = []
