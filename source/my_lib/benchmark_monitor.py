@@ -96,7 +96,7 @@ class BenchmarkMonitor:
         gpu: GPU,
         sampling_frequency: int,
         n_runs: int,
-        timeout_seconds: int,
+        timeout_seconds: int = None,
     ) -> None:
 
         self.__gpu = gpu
