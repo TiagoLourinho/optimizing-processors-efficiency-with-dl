@@ -9,16 +9,16 @@ config = {
         ################################
         ########## GPU config ##########
         ################################
-        # Currently has the clock levels for alessandra
+        # Currently has the clock levels for sydney
         "memory_levels": {
-            "max": 9501,
-            "min": 5001,
+            "max": 15001,
+            "min": 7001,
             "count": 3,
         },  # dict - Defines the memory levels to use for the GPU
         "graphics_levels": {
-            "max": 2100,
-            "min": 1005,
-            "count": 30,
+            "max": 3090,
+            "min": 1500,
+            "count": 50,
         },  # dict - Defines the graphics levels to use for the GPU
         #################################
         ######## Sampling config ########
