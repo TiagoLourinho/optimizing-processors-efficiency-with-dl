@@ -52,7 +52,7 @@ struct ConfigArgs
     uint64_t samplingInterval = 5000000;            // ns == 0.005s -> 200Hz (so double the sampling rate used in the python script with nvml)
     size_t hardwareBufferSize = 1024 * 1024 * 1024; // 1024MB
     uint64_t maxSamples = 10000;
-    // Metrics from https://docs.nvidia.com/cupti/main/main.html#id20
+    // Metrics from https://docs.nvidia.com/cupti/main/main.html#metrics-table
     // The ones commented out resulted in CUPTI_ERROR_INVALID_PARAMETER.
     std::vector<const char *> metrics =
         {
@@ -65,14 +65,14 @@ struct ConfigArgs
             "sm__cycles_active.avg.pct_of_peak_sustained_elapsed",
             "sm__inst_executed_realtime.avg.pct_of_peak_sustained_elapsed",
             "sm__pipe_tensor_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed",
-            //"sm__pipe_shared_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed",
+            "sm__pipe_shared_cycles_active_realtime.avg.pct_of_peak_sustained_elapsed",
             "dramc__read_throughput.avg.pct_of_peak_sustained_elapsed",
             "dramc__write_throughput.avg.pct_of_peak_sustained_elapsed",
             "pcie__read_bytes.avg.pct_of_peak_sustained_elapsed",
             "pcie__write_bytes.avg.pct_of_peak_sustained_elapsed",
-            //"nvlrx__bytes.avg.pct_of_peak_sustained_elapsed",
-            //"nvltx__bytes.avg.pct_of_peak_sustained_elapsed",
-            //"pcie__rx_requests_aperture_bar1_op_read.sum ",
+            "nvlrx__bytes.avg.pct_of_peak_sustained_elapsed",
+            "nvltx__bytes.avg.pct_of_peak_sustained_elapsed",
+            "pcie__rx_requests_aperture_bar1_op_read.sum",
             "pcie__rx_requests_aperture_bar1_op_write.sum"};
 };
 
