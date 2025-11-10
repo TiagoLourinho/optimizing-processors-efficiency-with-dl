@@ -18,7 +18,7 @@ config = {
         "graphics_levels": {
             "max": 3090,
             "min": 1500,
-            "count": 50,
+            "count": 30,
         },  # dict - Defines the graphics levels to use for the GPU
         #################################
         ######## Sampling config ########
