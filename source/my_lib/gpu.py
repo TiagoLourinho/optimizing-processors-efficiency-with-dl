@@ -3,6 +3,8 @@ from enum import Enum
 
 from pynvml import *
 
+from .utils import assert_within_percent
+
 
 class GPUQueries(Enum):
     """Defines the queryable information of the GPU"""
@@ -42,6 +44,11 @@ class GPU:
 
         # Whether or not the GPU is in realtime mode (skips sleeps when changing clocks)
         self.__realtime_mode = False
+
+        # Allowed difference percentage when changing clocks, examples:
+        # NVML returns 7001 MHz in the supported clocks but then the value returned by the query is just 7000 MHz
+        # Driver sets the clock to 1563 MHz intead of 1570 MHz
+        self.allowed_dif_percent = 5  # %
 
     def __enter__(self) -> "GPU":
         """Initializes nvml and gets the device handle"""
@@ -144,9 +151,13 @@ class GPU:
         if not self.__realtime_mode:
             time.sleep(1)
 
-            # NVML returns for example 7001 MHz in the supported clocks,
-            # but then the value returned by the query is just 7000 MHz
-            if abs(self.graphics_clk - value) > 1:
+            try:
+                assert_within_percent(
+                    actual=self.graphics_clk,
+                    expected=value,
+                    percent=self.allowed_dif_percent,
+                )
+            except AssertionError:
                 raise GPUClockChangingError()
 
         self.__is_graphics_clk_locked = True
@@ -170,9 +181,13 @@ class GPU:
         if not self.__realtime_mode:
             time.sleep(1)
 
-            # NVML returns for example 7001 MHz in the supported clocks,
-            # but then the value returned by the query is just 7000 MHz
-            if abs(self.memory_clk - value) > 1:
+            try:
+                assert_within_percent(
+                    actual=self.memory_clk,
+                    expected=value,
+                    percent=self.allowed_dif_percent,
+                )
+            except AssertionError:
                 raise GPUClockChangingError()
 
         self.__is_memory_clk_locked = True

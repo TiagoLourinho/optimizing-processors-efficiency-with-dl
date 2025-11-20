@@ -18,6 +18,7 @@ from my_lib.utils import (
     are_there_other_users,
     collect_system_info,
     validate_config,
+    assert_within_percent,
 )
 
 load_dotenv()
@@ -184,8 +185,16 @@ def main(
                             gpu.graphics_clk = graphics_clock
 
                             # Sometimes the driver changes the graphics clock after changing the graphics clock
-                            assert gpu.memory_clk == memory_clock
-                            assert gpu.graphics_clk == graphics_clock
+                            assert_within_percent(
+                                actual=gpu.memory_clk,
+                                expected=memory_clock,
+                                percent=gpu.allowed_dif_percent,
+                            )
+                            assert_within_percent(
+                                actual=gpu.graphics_clk,
+                                expected=graphics_clock,
+                                percent=gpu.allowed_dif_percent,
+                            )
                         except (GPUClockChangingError, AssertionError):
 
                             # The driver sometimes doesn't let the GPU change to frequencies too high so just skip them

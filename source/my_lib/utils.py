@@ -119,3 +119,8 @@ def get_ed2p(power: float, runtime: float):
 def get_edp(power: float, runtime: float):
     # EDP = E * D = P * D * D = P * D²
     return power * (runtime**2)
+
+
+def assert_within_percent(actual, expected, percent):
+    tol = abs(expected) * (percent / 100.0)
+    assert abs(actual - expected) <= tol
