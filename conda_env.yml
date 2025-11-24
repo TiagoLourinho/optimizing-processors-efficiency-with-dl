@@ -14,8 +14,8 @@ dependencies:
   - matplotlib
   - requests
   - pip
-  - pip: # Use CUDA 11.8 for better compatibility on INESC Machines
-      - torch==2.5.1+cu118
-      - torchvision==0.20.1+cu118
-      - torchaudio==2.5.1+cu118
-      - --extra-index-url https://download.pytorch.org/whl/cu118
+  - pip: 
+      - torch==2.9.1+cu129
+      - torchvision==0.24.1+cu129
+      - torchaudio==2.9.1+cu129
+      - --extra-index-url https://download.pytorch.org/whl/cu129
