@@ -48,7 +48,7 @@ class GPU:
         # Allowed difference percentage when changing clocks, examples:
         # NVML returns 7001 MHz in the supported clocks but then the value returned by the query is just 7000 MHz
         # Driver sets the clock to 1563 MHz intead of 1570 MHz
-        self.allowed_dif_percent = 5  # %
+        self.allowed_dif_percent = 1  # %
 
     def __enter__(self) -> "GPU":
         """Initializes nvml and gets the device handle"""
