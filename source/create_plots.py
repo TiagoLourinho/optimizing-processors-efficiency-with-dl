@@ -112,8 +112,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         color="red",
         linestyle="--",
     )
-    axes[0].set_xlabel("Gold Graphics")
-    axes[0].set_ylabel("Predicted Graphics")
+    axes[0].set_xlabel("Gold Graphics Scaling Factor")
+    axes[0].set_ylabel("Predicted Graphics Scaling Factor")
     axes[0].legend()
     axes[0].grid(True)
 
@@ -154,8 +154,8 @@ def plot_training_summary(input_file: str, output_file: str) -> None:
         linestyle="--",
     )
 
-    axes[1].set_xlabel("Gold Memory")
-    axes[1].set_ylabel("Predicted Memory")
+    axes[1].set_xlabel("Gold Memory Scaling Factor")
+    axes[1].set_ylabel("Predicted Memory Scaling Factor")
     axes[1].legend()
     axes[1].grid(True)
 
