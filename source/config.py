@@ -35,7 +35,7 @@ config = {
         "epochs": 100,  # int - Number of epochs to train
         "train_percent": 0.8,  # float - Percent of data to use to train (rest is test)
         "batch_size": None,  # int | None - The batch size (or None for no batch)
-        "learning_rate": 0.001,  # float - The optimizer learning rate
+        "learning_rate": 0.0001,  # float - The optimizer learning rate
         "max_grad_norm": 1.0,  # float - The maximum gradient norm for gradient clipping
         ##########################################
         ########## Architecture Related ##########
