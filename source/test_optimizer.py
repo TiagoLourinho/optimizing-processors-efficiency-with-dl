@@ -7,13 +7,27 @@ N_RUNS_PER_BENCHMARK = 3
 EXECUTABLES_PATH = "tests/executables/"
 PTX_PATH = "tests/ptx/"
 
-BENCHMARK_ARGS = [
-    "128",
-    "256",
-    "100000",
-    "32",
-    "1",
-]
+BENCHMARK_ARGS = {
+    "gpuPTXModel": [
+        "128",
+        "256",
+        "100000",
+        "32",
+        "1",
+    ],
+    "gpu-rodinia_cuda_gaussian_gaussian": ["-s", "16384"],
+    "gpu-rodinia_cuda_particlefilter_ex_particle_CUDA_float_seq": [
+        "-x",
+        "1024",
+        "-y",
+        "1024",
+        "-z",
+        "1024",
+        "-np",
+        "65536",
+    ],
+    "gpu-rodinia_cuda_nn_nn_cuda": ["nn_filelist.txt"],
+}
 
 
 def main():
@@ -49,9 +63,15 @@ def main():
                 if baseline:
                     command.append("--get_baseline")
 
+                args = []
+                for key in BENCHMARK_ARGS:
+                    if benchmark.startswith(key):
+                        args = BENCHMARK_ARGS[key]
+                        break
+
                 # Everything after "--" is passed to the benchmark
                 command.append("--")
-                command.extend(BENCHMARK_ARGS)
+                command.extend(args)
 
                 try:
                     subprocess.run(command)
