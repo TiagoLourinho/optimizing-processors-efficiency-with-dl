@@ -11,10 +11,35 @@ from models.dataset import CustomDataset
 from models.predictor import FrequencyScalingPredictor
 from models.ptx_encoder import PTXEncoder
 from models.standardizer import Standardizer
-from my_lib.utils import collect_system_info, get_ed2p
+from my_lib.utils import collect_system_info, get_log_normalized_ed2p
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+
+def get_baseline_values(samples: list) -> dict:
+    """Gets the baseline power and runtime values (at maximum frequencies) for each benchmark for ED²P normalization"""
+
+    maximum_memory_frequency = max(sample["memory_frequency"] for sample in samples)
+    maximum_graphics_frequency = max(
+        sample["graphics_frequency"]
+        for sample in samples
+        if sample["memory_frequency"] == maximum_memory_frequency
+    )
+
+    baseline_values = {}
+    for sample in samples:
+        if (
+            sample["memory_frequency"] == maximum_memory_frequency
+            and sample["graphics_frequency"] == maximum_graphics_frequency
+        ):
+            benchmark_name = sample["benchmark_name"]
+            baseline_values[benchmark_name] = {
+                "power": sample["benchmark_metrics"]["nvml_metrics"]["POWER"],
+                "runtime": sample["benchmark_metrics"]["runtime"],
+            }
+
+    return baseline_values
 
 
 def add_targets(samples: list) -> None:
@@ -22,21 +47,25 @@ def add_targets(samples: list) -> None:
 
     get_scaling_factor = lambda real_freq, optimal_freq: optimal_freq / real_freq
 
-    # Find mininum ED²P for each benchmark
-    min_ed2p_per_benchmark = {}
+    baseline_values = get_baseline_values(samples)
+
+    # Find mininum metric for each benchmark
+    min_metric_per_benchmark = {}
     optimal_freqs_per_benchmark = {}
     for sample in samples:
         benchmark_name = sample["benchmark_name"]
-        if benchmark_name not in min_ed2p_per_benchmark:
-            min_ed2p_per_benchmark[benchmark_name] = float("inf")
+        if benchmark_name not in min_metric_per_benchmark:
+            min_metric_per_benchmark[benchmark_name] = float("inf")
             optimal_freqs_per_benchmark[benchmark_name] = {}
 
-        ed2p_value = get_ed2p(
+        metric_value = get_log_normalized_ed2p(
             power=sample["benchmark_metrics"]["nvml_metrics"]["POWER"],
             runtime=sample["benchmark_metrics"]["runtime"],
+            base_power=baseline_values[benchmark_name]["power"],
+            base_runtime=baseline_values[benchmark_name]["runtime"],
         )
-        if ed2p_value < min_ed2p_per_benchmark[benchmark_name]:
-            min_ed2p_per_benchmark[benchmark_name] = ed2p_value
+        if metric_value < min_metric_per_benchmark[benchmark_name]:
+            min_metric_per_benchmark[benchmark_name] = metric_value
             optimal_freqs_per_benchmark[benchmark_name]["memory_frequency"] = sample[
                 "memory_frequency"
             ]

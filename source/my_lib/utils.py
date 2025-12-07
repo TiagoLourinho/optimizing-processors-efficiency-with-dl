@@ -121,6 +121,15 @@ def get_edp(power: float, runtime: float):
     return power * (runtime**2)
 
 
+def get_log_normalized_ed2p(
+    power: float, runtime: float, base_power: float, base_runtime: float
+):
+    # log(ED²P / ED²P_base) where base corresponds to the reference configuration (maximum frequencies)
+    ed2p = get_ed2p(power, runtime)
+    base_ed2p = get_ed2p(base_power, base_runtime)
+    return np.log(ed2p / base_ed2p)
+
+
 def assert_within_percent(actual, expected, percent):
     tol = abs(expected) * (percent / 100.0)
     assert abs(actual - expected) <= tol
