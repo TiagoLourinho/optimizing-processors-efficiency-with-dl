@@ -1,11 +1,5 @@
 # Optimizing GPUs’ energy efficiency through voltage-frequency scaling
 
-## Environment Versions
-
-- OS: [Pop!\_OS 22.04 LTS](https://pop.system76.com/)
-- Python: [3.10.17](https://www.python.org/downloads/release/python-31017/)
-- NVIDIA Driver: [565.77](https://www.nvidia.com/en-us/geforce/drivers/results/237587/)
-- CUDA Toolkit: [12.6.2](https://developer.nvidia.com/cuda-12-6-2-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
 
 ## Environment Setup
 
