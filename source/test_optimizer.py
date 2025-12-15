@@ -9,9 +9,9 @@ PTX_PATH = "tests/ptx/"
 
 BENCHMARK_ARGS = {
     "gpuPTXModel": [
-        "128",
+        "336",
         "256",
-        "100000",
+        "2000000",
         "32",
         "1",
     ],
