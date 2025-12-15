@@ -1,4 +1,4 @@
-# Optimizing GPUs’ energy efficiency through voltage-frequency scaling
+# Optimizing GPUs’ energy efficiency through dynamic voltage-frequency scaling
 
 
 ## Environment Setup
